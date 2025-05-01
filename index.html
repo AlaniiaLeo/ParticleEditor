@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Редактор эмиттера с современным дизайном</title>
+  <!-- PixiJS & PixiParticles -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.8/dist/browser/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pixi-particles@4.3.0/dist/pixi-particles.min.js"></script>
+  <style>
+    /* Общие сбросы */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f0f2f5; color: #333; }
+
+    /* Контейнер приложения */
+    #container { display: flex; height: 100vh; }
+
+    /* Сайдбар */
+    #sidebar {
+      width: 380px;
+      background: #fff;
+      padding: 20px;
+      border-right: 1px solid #e0e0e0;
+      overflow-y: auto;
+    }
+    #sidebar h2 {
+      font-size: 1.4rem;
+      margin-bottom: 16px;
+      color: #007acc;
+      border-bottom: 2px solid #007acc;
+      padding-bottom: 4px;
+    }
+    textarea {
+      width: 100%;
+      height: 120px;
+      font-family: monospace;
+      font-size: 0.9rem;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      resize: vertical;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #007acc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .btn:hover { background: #005fa3; }
+
+    .option-group {
+      margin: 20px 0;
+      padding: 16px;
+      background: #fbfbfb;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+    }
+    .option-group h2 {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: #555;
+    }
+    label {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+    label span {
+      margin-left: auto;
+      width: 40px;
+      text-align: right;
+      font-weight: bold;
+    }
+    input[type="range"] { flex: 1; margin: 0 10px; }
+    input[type="number"], input[type="color"] {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    input[type="checkbox"] { margin-right: 6px; }
+
+    /* Список эмиттеров */
+    #emitterList { list-style: none; margin-top: 8px; }
+    #emitterList li {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    #emitterList li:hover { background: #f9f9f9; }
+    #emitterList li.active {
+      background: #e8f4ff;
+      border-color: #007acc;
+    }
+    #emitterList li input[type="text"] {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    #emitterList li button {
+      margin-left: 8px;
+      background: #d9534f;
+    }
+
+    /* Основная область Pixi */
+    #main { flex: 1; background: #000; position: relative; }
+    #main canvas { width: 100%; height: 100%; display: block; }
+
+    /* Обратный отсчёт */
+    #countdownOverlay {
+      position: absolute; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.6); color: #fff;
+      font-size: 3rem; display: flex;
+      align-items: center; justify-content: center;
+      pointer-events: none; z-index: 100; display: none;
+    }
+
+    /* Модальное окно */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      align-items: center; justify-content: center;
+      z-index: 200;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 24px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      position: relative;
+    }
+    .modal-content h2 {
+      margin-bottom: 16px;
+      color: #007acc;
+      font-size: 1.3rem;
+    }
+    .modal-content input[type="file"] {
+      display: block;
+      margin-top: 8px;
+    }
+    .close {
+      position: absolute;
+      top: 12px; right: 16px;
+      font-size: 24px;
+      cursor: pointer;
+      color: #888;
+      transition: color 0.2s;
+    }
+    .close:hover { color: #555; }
+  </style>
+</head>
+<body>
+
+  <div id="container">
+    <!-- Сайдбар -->
+    <div id="sidebar">
+      <h2>Редактор emitter.json</h2>
+      <textarea id="configArea" placeholder="Загрузка конфигурации..."></textarea>
+      <button id="saveJsonBtn" class="btn">Сохранить JSON</button>
+      <button id="openJsonModalBtn" class="btn">Импорт JSON</button>
+
+      <div class="option-group" id="emitterListSection">
+        <h2>Эмиттеры</h2>
+        <ul id="emitterList"></ul>
+        <button id="createEmitterBtn" class="btn">Создать эмиттер</button>
+      </div>
+
+      <div class="option-group" id="configForm">
+        <h2>Параметры эмиттера</h2>
+        <label>
+          Alpha Start
+          <input type="range" id="alphaStart" min="0" max="1" step="0.01">
+          <span id="alphaStartVal"></span>
+        </label>
+        <label>
+          Alpha End
+          <input type="range" id="alphaEnd" min="0" max="1" step="0.01">
+          <span id="alphaEndVal"></span>
+        </label>
+        <label>
+          Scale Start
+          <input type="range" id="scaleStart" min="0" max="2" step="0.01">
+          <span id="scaleStartVal"></span>
+        </label>
+        <label>
+          Scale End
+          <input type="range" id="scaleEnd" min="0" max="2" step="0.01">
+          <span id="scaleEndVal"></span>
+        </label>
+        <label>
+          Min Scale Mult.
+          <input type="range" id="minScaleMult" min="0" max="1" step="0.01">
+          <span id="minScaleMultVal"></span>
+        </label>
+        <label>
+          Color Start
+          <input type="color" id="colorStart">
+        </label>
+        <label>
+          Color End
+          <input type="color" id="colorEnd">
+        </label>
+        <label>
+          Speed Start
+          <input type="range" id="speedStart" min="0" max="500" step="1">
+          <span id="speedStartVal"></span>
+        </label>
+        <label>
+          Speed End
+          <input type="range" id="speedEnd" min="0" max="500" step="1">
+          <span id="speedEndVal"></span>
+        </label>
+        <label>
+          Min Speed Mult.
+          <input type="range" id="minSpeedMult" min="0" max="1" step="0.01">
+          <span id="minSpeedMultVal"></span>
+        </label>
+        <label>
+          Acceleration X
+          <input type="number" id="accX" step="0.1">
+        </label>
+        <label>
+          Acceleration Y
+          <input type="number" id="accY" step="0.1">
+        </label>
+        <label>
+          Rot. Min
+          <input type="number" id="startRotMin" step="1">
+        </label>
+        <label>
+          Rot. Max
+          <input type="number" id="startRotMax" step="1">
+        </label>
+        <label>
+          Lifetime Min
+          <input type="range" id="lifeMin" min="0" max="5" step="0.1">
+          <span id="lifeMinVal"></span>
+        </label>
+        <label>
+          Lifetime Max
+          <input type="range" id="lifeMax" min="0" max="5" step="0.1">
+          <span id="lifeMaxVal"></span>
+        </label>
+        <label>
+          Frequency
+          <input type="range" id="frequency" min="0.001" max="0.1" step="0.001">
+          <span id="frequencyVal"></span>
+        </label>
+        <label>
+          Max Particles
+          <input type="number" id="maxParticles" step="1">
+        </label>
+        <label>
+          Spawn Radius
+          <input type="range" id="spawnCircleR" min="0" max="50" step="1">
+          <span id="spawnCircleRVal"></span>
+        </label>
+      </div>
+
+      <div class="option-group" id="bgSection">
+        <h2>Фон</h2>
+        <label><input type="radio" name="bgType" value="color" checked> Цвет</label>
+        <label><input type="radio" name="bgType" value="image"> Изображение</label>
+        <label id="colorPickerLabel">
+          Цвет
+          <input type="color" id="bgColor" value="#000000">
+        </label>
+        <label id="bgFileLabel" style="display:none;">
+          Файл
+          <input type="file" id="bgFile" accept="image/*">
+        </label>
+        <button id="applyBgBtn" class="btn">Применить фон</button>
+      </div>
+
+      <div class="option-group" id="textureSection">
+        <h2>Текстуры</h2>
+        <button id="openTextureModalBtn" class="btn">Добавить текстуру</button>
+        <div id="textureList"></div>
+      </div>
+
+      <div class="option-group">
+        <h2>Экспорт</h2>
+        <label>
+          Кадров
+          <input type="range" id="frameCount" min="1" max="120" step="1" value="30">
+          <span id="frameCountVal">30</span>
+        </label>
+        <label><input type="checkbox" id="exportNoBackground" checked> Без фона</label>
+        <button id="exportAnimBtn" class="btn">Сохранить анимацию</button>
+      </div>
+    </div>
+
+    <!-- Основная канвас-область -->
+    <div id="main"></div>
+  </div>
+
+  <!-- Оверлей и индикатор -->
+  <div id="countdownOverlay"></div>
+  <div id="emitterIndicator" style="display:none;"></div>
+
+  <!-- JSON Import Modal -->
+  <div id="jsonModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Импорт JSON эмиттера</h2>
+      <input type="file" id="jsonFileInput" accept="application/json">
+    </div>
+  </div>
+
+  <!-- Texture Add Modal -->
+  <div id="textureModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>Добавить текстуру</h2>
+      <input type="file" id="textureFileInput" accept="image/*">
+      <button id="addTextureConfirmBtn" class="btn">Добавить</button>
+    </div>
+  </div>
+
+  <script>
+    // === PIXI Initialization ===
+    const app = new PIXI.Application({
+      width: document.getElementById('main').clientWidth,
+      height: document.getElementById('main').clientHeight,
+      backgroundAlpha: 0
+    });
+    document.getElementById('main').appendChild(app.view);
+
+    // --- Containers ---
+    const bgContainer = new PIXI.Container();
+    app.stage.addChildAt(bgContainer, 0);
+    let bgSprite = null;
+
+    const particleContainer = new PIXI.Container();
+    app.stage.addChild(particleContainer);
+
+    const emitterContainer = new PIXI.Container();
+    emitterContainer.position.set(app.screen.width/2, app.screen.height/2);
+    emitterContainer.hitArea = new PIXI.Circle(0,0,20);
+    emitterContainer.interactive = true;
+    emitterContainer.cursor = 'pointer';
+    app.stage.addChild(emitterContainer);
+
+    // Drag emitter
+    function onDragStart(e){ this.data=e.data; this.dragging=true; }
+    function onDragEnd(){ this.dragging=false; this.data=null; }
+    function onDragMove(){
+      if(!this.dragging) return;
+      const p=this.data.getLocalPosition(this.parent);
+      this.position.set(p.x,p.y);
+      const ind = document.getElementById('emitterIndicator');
+      ind.style.left = p.x+'px';
+      ind.style.top  = p.y+'px';
+    }
+    emitterContainer
+      .on('pointerdown', onDragStart)
+      .on('pointerup', onDragEnd)
+      .on('pointerupoutside', onDragEnd)
+      .on('pointermove', onDragMove);
+
+    const emitterIndicator = document.getElementById('emitterIndicator');
+
+    // Default textures
+    const defaultTextures = [
+      PIXI.Texture.from('particle.png'),
+      PIXI.Texture.from('b_flare.png')
+    ];
+
+    // Per-emitter data
+    let emitters = [], configs = [], texturesList = [], names = [];
+    let selectedIndex = 0, elapsed = Date.now();
+
+    // Create emitter
+    function createEmitter(i){
+      if(emitters[i]){
+        emitters[i].cleanup(); emitters[i].destroy();
+      }
+      emitters[i] = new PIXI.particles.Emitter(
+        particleContainer,
+        texturesList[i],
+        configs[i]
+      );
+      emitters[i].updateSpawnPos(emitterContainer.x, emitterContainer.y);
+    }
+
+    // Ticker
+    app.ticker.add(()=>{
+      const now = Date.now();
+      emitters.forEach(em=>{
+        if(em){
+          em.updateSpawnPos(emitterContainer.x, emitterContainer.y);
+          em.update((now-elapsed)*0.001);
+        }
+      });
+      elapsed = now;
+    });
+
+    // --- Живая обработка JSON-редактора ---
+    document.getElementById('configArea').addEventListener('input', ()=>{
+      try {
+        const txt = document.getElementById('configArea').value;
+        const parsed = JSON.parse(txt);
+        configs[selectedIndex] = parsed;
+        createEmitter(selectedIndex);
+        populateForm();
+      } catch {}
+    });
+
+    // --- SAVE JSON BUTTON FIX ---
+    document.getElementById('saveJsonBtn').addEventListener('click', () => {
+      if (!configs[selectedIndex]) return;
+      const cfg = configs[selectedIndex];
+      const filename = (names[selectedIndex] || `emitter_${selectedIndex+1}`) + '.json';
+      const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Texture list UI
+    function updateTextureList(){
+      const list = document.getElementById('textureList');
+      list.innerHTML = '';
+      texturesList[selectedIndex].forEach((tx, idx)=>{
+        const item = document.createElement('div');
+        item.className = 'textureItem';
+        const img = document.createElement('img');
+        img.src = tx.baseTexture.resource.url||'';
+        const btn = document.createElement('button');
+        btn.textContent = 'Удалить';
+        btn.onclick = ()=>{
+          texturesList[selectedIndex].splice(idx,1);
+          createEmitter(selectedIndex);
+          updateTextureList();
+        };
+        item.append(img, btn);
+        list.appendChild(item);
+      });
+    }
+
+    // Load initial emitter.json
+    fetch('emitter.json')
+      .then(r=>r.json())
+      .then(cfg=>{
+        configs.push(cfg);
+        texturesList.push(defaultTextures.slice());
+        names.push('Emitter 1');
+        createEmitter(0);
+        document.getElementById('configArea').value = JSON.stringify(cfg,null,2);
+        populateForm();
+        refreshEmitterList();
+        updateTextureList();
+      });
+
+    // JSON import modal
+    const jsonModal = document.getElementById('jsonModal');
+    document.getElementById('openJsonModalBtn').onclick = ()=> jsonModal.style.display='flex';
+    jsonModal.querySelector('.close').onclick = ()=> jsonModal.style.display='none';
+    document.getElementById('jsonFileInput').onchange = function(){
+      const f=this.files[0]; if(!f) return;
+      const reader=new FileReader();
+      reader.onload=e=>{
+        const cfg=JSON.parse(e.target.result);
+        configs.push(cfg);
+        texturesList.push(defaultTextures.slice());
+        names.push(`Emitter ${configs.length}`);
+        createEmitter(configs.length-1);
+        selectedIndex=configs.length-1;
+        populateForm();
+        refreshEmitterList();
+        updateTextureList();
+        jsonModal.style.display='none';
+      };
+      reader.readAsText(f);
+    };
+
+    // Texture add modal
+    const texModal = document.getElementById('textureModal');
+    document.getElementById('openTextureModalBtn').onclick = ()=> texModal.style.display='flex';
+    texModal.querySelector('.close').onclick = ()=> texModal.style.display='none';
+    document.getElementById('addTextureConfirmBtn').onclick = ()=>{
+      const fi=document.getElementById('textureFileInput');
+      if(fi.files[0]){
+        const url=URL.createObjectURL(fi.files[0]);
+        const tx=PIXI.Texture.from(url);
+        texturesList[selectedIndex].push(tx);
+        createEmitter(selectedIndex);
+        updateTextureList();
+      }
+      texModal.style.display='none';
+    };
+
+    // Emitter list UI
+    function refreshEmitterList(){
+      const ul=document.getElementById('emitterList');
+      ul.innerHTML = '';
+      configs.forEach((_,i)=>{
+        const li=document.createElement('li');
+        li.className = i===selectedIndex? 'active':''; 
+        const inp=document.createElement('input');
+        inp.type='text'; inp.value=names[i];
+        inp.oninput = ()=> names[i]=inp.value;
+        inp.onclick = e=> e.stopPropagation();
+        const del=document.createElement('button');
+        del.textContent='Удалить'; del.style.background='#d9534f';
+        del.onclick = e=>{
+          e.stopPropagation();
+          if(emitters[i]){ emitters[i].cleanup(); emitters[i].destroy(); }
+          configs.splice(i,1); texturesList.splice(i,1); names.splice(i,1); emitters.splice(i,1);
+          if(selectedIndex>=configs.length) selectedIndex=configs.length-1;
+          refreshEmitterList(); populateForm(); updateTextureList();
+        };
+        li.append(inp, del);
+        li.onclick = ()=>{
+          selectedIndex=i;
+          refreshEmitterList(); populateForm(); updateTextureList();
+        };
+        ul.appendChild(li);
+      });
+    }
+    document.getElementById('createEmitterBtn').onclick = ()=>{
+      const base = configs[0]||{};
+      const copy = JSON.parse(JSON.stringify(base));
+      configs.push(copy);
+      texturesList.push(defaultTextures.slice());
+      names.push(`Emitter ${configs.length}`);
+      createEmitter(configs.length-1);
+      selectedIndex=configs.length-1;
+      refreshEmitterList(); populateForm(); updateTextureList();
+    };
+
+    // Populate form fields
+    function populateForm(){
+      const c = configs[selectedIndex];
+      if(!c.alpha) c.alpha={start:1,end:0};
+      if(!c.scale) c.scale={start:1,end:1,minimumScaleMultiplier:1};
+      if(!c.color) c.color={start:'#fff',end:'#000'};
+      if(!c.speed) c.speed={start:200,end:50,minimumSpeedMultiplier:1};
+      if(!c.acceleration) c.acceleration={x:0,y:0};
+      if(!c.startRotation) c.startRotation={min:-120,max:120};
+      if(!c.rotationSpeed) c.rotationSpeed={min:-10,max:10};
+      if(!c.lifetime) c.lifetime={min:0.3,max:0.8};
+      if(!c.frequency) c.frequency=0.02;
+      if(!c.maxParticles) c.maxParticles=200;
+      if(!c.spawnCircle) c.spawnCircle={x:0,y:0,r:10};
+
+      document.getElementById('configArea').value=JSON.stringify(c,null,2);
+      document.getElementById('alphaStart').value=c.alpha.start;
+      document.getElementById('alphaStartVal').innerText=c.alpha.start;
+      document.getElementById('alphaEnd').value=c.alpha.end;
+      document.getElementById('alphaEndVal').innerText=c.alpha.end;
+      document.getElementById('scaleStart').value=c.scale.start;
+      document.getElementById('scaleStartVal').innerText=c.scale.start;
+      document.getElementById('scaleEnd').value=c.scale.end;
+      document.getElementById('scaleEndVal').innerText=c.scale.end;
+      document.getElementById('minScaleMult').value=c.scale.minimumScaleMultiplier;
+      document.getElementById('minScaleMultVal').innerText=c.scale.minimumScaleMultiplier;
+      document.getElementById('colorStart').value=c.color.start;
+      document.getElementById('colorEnd').value=c.color.end;
+      document.getElementById('speedStart').value=c.speed.start;
+      document.getElementById('speedStartVal').innerText=c.speed.start;
+      document.getElementById('speedEnd').value=c.speed.end;
+      document.getElementById('speedEndVal').innerText=c.speed.end;
+      document.getElementById('minSpeedMult').value=c.speed.minimumSpeedMultiplier;
+      document.getElementById('minSpeedMultVal').innerText=c.speed.minimumSpeedMultiplier;
+      document.getElementById('accX').value=c.acceleration.x;
+      document.getElementById('accY').value=c.acceleration.y;
+      document.getElementById('startRotMin').value=c.startRotation.min;
+      document.getElementById('startRotMax').value=c.startRotation.max;
+      document.getElementById('lifeMin').value=c.lifetime.min;
+      document.getElementById('lifeMinVal').innerText=c.lifetime.min;
+      document.getElementById('lifeMax').value=c.lifetime.max;
+      document.getElementById('lifeMaxVal').innerText=c.lifetime.max;
+      document.getElementById('frequency').value=c.frequency;
+      document.getElementById('frequencyVal').innerText=c.frequency;
+      document.getElementById('maxParticles').value=c.maxParticles;
+      document.getElementById('spawnCircleR').value=c.spawnCircle.r;
+      document.getElementById('spawnCircleRVal').innerText=c.spawnCircle.r;
+    }
+
+    // Form inputs → update config & emitter
+    const fields = [
+      'alphaStart','alphaEnd','scaleStart','scaleEnd','minScaleMult',
+      'colorStart','colorEnd','speedStart','speedEnd','minSpeedMult',
+      'accX','accY','startRotMin','startRotMax',
+      'lifeMin','lifeMax','frequency','maxParticles','spawnCircleR'
+    ];
+    fields.forEach(id=>{
+      document.getElementById(id).addEventListener('input',()=>{
+        const c = configs[selectedIndex];
+        const el = document.getElementById(id);
+        switch(id){
+          case 'alphaStart': c.alpha.start=parseFloat(el.value); document.getElementById('alphaStartVal').innerText=el.value; break;
+          case 'alphaEnd':   c.alpha.end  =parseFloat(el.value); document.getElementById('alphaEndVal').innerText=el.value; break;
+          case 'scaleStart': c.scale.start=parseFloat(el.value); document.getElementById('scaleStartVal').innerText=el.value; break;
+          case 'scaleEnd':   c.scale.end  =parseFloat(el.value); document.getElementById('scaleEndVal').innerText=el.value; break;
+          case 'minScaleMult': c.scale.minimumScaleMultiplier=parseFloat(el.value); document.getElementById('minScaleMultVal').innerText=el.value; break;
+          case 'colorStart': c.color.start=el.value; break;
+          case 'colorEnd':   c.color.end  =el.value; break;
+          case 'speedStart': c.speed.start=parseFloat(el.value); document.getElementById('speedStartVal').innerText=el.value; break;
+          case 'speedEnd':   c.speed.end=parseFloat(el.value); document.getElementById('speedEndVal').innerText=el.value; break;
+          case 'minSpeedMult': c.speed.minimumSpeedMultiplier=parseFloat(el.value); document.getElementById('minSpeedMultVal').innerText=el.value; break;
+          case 'accX': c.acceleration.x=parseFloat(el.value); break;
+          case 'accY': c.acceleration.y=parseFloat(el.value); break;
+          case 'startRotMin': c.startRotation.min=parseFloat(el.value); break;
+          case 'startRotMax': c.startRotation.max=parseFloat(el.value); break;
+          case 'lifeMin': c.lifetime.min=parseFloat(el.value); document.getElementById('lifeMinVal').innerText=el.value; break;
+          case 'lifeMax': c.lifetime.max=parseFloat(el.value); document.getElementById('lifeMaxVal').innerText=el.value; break;
+          case 'frequency': c.frequency=parseFloat(el.value); document.getElementById('frequencyVal').innerText=el.value; break;
+          case 'maxParticles': c.maxParticles=parseInt(el.value,10); break;
+          case 'spawnCircleR': c.spawnCircle.r=parseFloat(el.value); document.getElementById('spawnCircleRVal').innerText=el.value; break;
+        }
+        createEmitter(selectedIndex);
+        document.getElementById('configArea').value=JSON.stringify(c,null,2);
+      });
+    });
+
+    // Export animation
+    document.getElementById('frameCount').addEventListener('input', function(){
+      document.getElementById('frameCountVal').innerText = this.value;
+    });
+    document.getElementById('exportAnimBtn').addEventListener('click',()=>{
+      const total = +document.getElementById('frameCount').value;
+      const noBg = document.getElementById('exportNoBackground').checked;
+      app.renderer.backgroundAlpha = noBg?0:1;
+      if(!noBg) app.renderer.backgroundColor=0x000000;
+      const ov = document.getElementById('countdownOverlay');
+      let cd=3; ov.style.display='flex'; ov.textContent=cd;
+      const ti=setInterval(()=>{
+        cd--; if(cd>0) ov.textContent=cd;
+        else{ clearInterval(ti); ov.style.display='none'; capture(total); }
+      },1000);
+    });
+    function capture(total){
+      let idx=0, first=null;
+      (function next(){
+        if(idx>=total){ if(first) saveFrame(first,idx); return; }
+        const now=Date.now(); emitters.forEach(em=>em&&em.update((now-elapsed)*0.001)); elapsed=now;
+        const rt=PIXI.RenderTexture.create(app.screen.width,app.screen.height);
+        app.renderer.render(app.stage,rt);
+        const canvas=app.renderer.extract.canvas(rt);
+        const url=canvas.toDataURL('image/png');
+        if(idx===0) first=url;
+        saveFrame(url,idx);
+        idx++; setTimeout(next,33);
+      })();
+    }
+    function saveFrame(data,i){
+      const a=document.createElement('a');
+      a.href=data; a.download=`frame_${i}.png`; a.click();
+    }
+
+    // Background controls
+    document.querySelectorAll('input[name="bgType"]').forEach(r=>{
+      r.onchange=()=>{
+        document.getElementById('colorPickerLabel').style.display = r.value==='color'?'flex':'none';
+        document.getElementById('bgFileLabel').style.display   = r.value==='image'?'flex':'none';
+      };
+    });
+    document.getElementById('applyBgBtn').onclick=()=>{
+      const type=document.querySelector('input[name="bgType"]:checked').value;
+      if(type==='color'){
+        const col=document.getElementById('bgColor').value;
+        app.renderer.backgroundColor=parseInt(col.slice(1),16);
+        app.renderer.backgroundAlpha=0;
+        if(bgSprite){ bgContainer.removeChild(bgSprite); bgSprite.destroy(); bgSprite=null; }
+      } else {
+        const fi=document.getElementById('bgFile');
+        if(fi.files[0]){
+          const url=URL.createObjectURL(fi.files[0]);
+          if(bgSprite){ bgContainer.removeChild(bgSprite); bgSprite.destroy(); }
+          bgSprite=new PIXI.Sprite(PIXI.Texture.from(url));
+          bgSprite.anchor.set(0.5);
+          bgSprite.position.set(app.screen.width/2,app.screen.height/2);
+          bgContainer.addChild(bgSprite);
+          bgSprite.interactive=true; bgSprite.cursor='move';
+          let offset={x:0,y:0};
+          bgSprite.on('pointerdown',e=>{
+            const pos=e.data.getLocalPosition(bgContainer);
+            offset.x=bgSprite.x-pos.x; offset.y=bgSprite.y-pos.y;
+            bgSprite.dragging=true;
+          });
+          bgSprite.on('pointermove',e=>{
+            if(!bgSprite.dragging) return;
+            const pos=e.data.getLocalPosition(bgContainer);
+            bgSprite.position.set(pos.x+offset.x,pos.y+offset.y);
+          });
+          bgSprite.on('pointerup',   ()=>bgSprite.dragging=false)
+                  .on('pointerupoutside',()=>bgSprite.dragging=false);
+          app.renderer.backgroundAlpha=1;
+        } else alert('Выберите файл фона');
+      }
+    };
+
+    // Resize
+    window.addEventListener('resize',()=>{
+      const m=document.getElementById('main');
+      app.renderer.resize(m.clientWidth,app.screen.height= m.clientHeight);
+      emitterContainer.position.set(app.screen.width/2,app.screen.height/2);
+    });
+  </script>
+</body>
+</html>
