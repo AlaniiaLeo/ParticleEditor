@@ -1203,19 +1203,44 @@
       return out;
     }
 
+    async function fetchSourceAssetBlob(name){
+      // Preview textures such as the default particle.png may come directly from
+      // the deployed site instead of a user-selected File/Blob. For DEV package
+      // export, resolve those same-origin files automatically so the ZIP stays
+      // self-contained without forcing the user to upload them again.
+      try {
+        const url = new URL(name, document.baseURI);
+        const response = await fetch(url.href, { cache:'no-cache' });
+        if(!response.ok) return null;
+        return await response.blob();
+      } catch {}
+      return null;
+    }
+
     async function assetBlobFromEditor(i,name){
       const asset=(textureAssets[i]||[]).find(a=>a.name===name);
       if(asset?.blob) return asset.blob;
       if(asset?.objectUrl){
-        try { return await (await fetch(asset.objectUrl)).blob(); } catch {}
+        try {
+          const response=await fetch(asset.objectUrl);
+          if(response.ok) return await response.blob();
+        } catch {}
       }
       const seq=getSequenceState(i);
       const idx=seq.frameNames.indexOf(name);
       if(idx>=0){
         if(seq.blobs?.[idx]) return seq.blobs[idx];
-        if(seq.urls?.[idx]){ try { return await (await fetch(seq.urls[idx])).blob(); } catch {} }
+        if(seq.urls?.[idx]){
+          try {
+            const response=await fetch(seq.urls[idx]);
+            if(response.ok) return await response.blob();
+          } catch {}
+        }
       }
-      return null;
+
+      // Last fallback: if the texture is part of the deployed editor/game assets
+      // (e.g. particle.png on GitHub Pages), fetch it from the page base URL.
+      return await fetchSourceAssetBlob(name);
     }
 
     function packageManifest(i, usedAssets){
