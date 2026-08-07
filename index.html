@@ -46,6 +46,10 @@
     }
     textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,140,255,.13);background:#0c131c}
     textarea::placeholder{color:#667487}
+    .json-editor-wrap{position:relative;width:100%;overflow:hidden;border-radius:10px}
+    .json-editor-wrap textarea{position:relative;z-index:1;display:block;background:#0a1017}
+    .json-error-highlight{display:none;position:absolute;z-index:2;left:1px;right:1px;height:17.4px;background:rgba(255,101,119,.18);border-left:3px solid var(--danger);box-shadow:inset 0 1px 0 rgba(255,101,119,.10),inset 0 -1px 0 rgba(255,101,119,.10);pointer-events:none}
+    .json-editor-wrap.has-error textarea{border-color:rgba(255,101,119,.72);box-shadow:0 0 0 3px rgba(255,101,119,.08)}
     .status-line{font-size:11px;margin:7px 2px 4px;min-height:16px}.status-ok{color:var(--success)}.status-error{color:var(--danger)}.status-warn{color:var(--warning)}
     .btn{
       display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin:7px 6px 0 0;padding:7px 11px;border:1px solid transparent;border-radius:8px;
@@ -88,7 +92,10 @@
     <!-- Sidebar -->
     <div id="sidebar">
       <div class="brand-header"><h2>Particle Emitter Studio</h2><div class="brand-meta">PixiJS 6.5.6 · @pixi/particle-emitter 5.0.8</div></div>
-      <textarea id="configArea" placeholder="Emitter JSON configuration..."></textarea>
+      <div class="json-editor-wrap" id="jsonEditorWrap">
+        <textarea id="configArea" placeholder="Emitter JSON configuration..." spellcheck="false"></textarea>
+        <div id="jsonErrorHighlight" class="json-error-highlight" aria-hidden="true"></div>
+      </div>
       <div id="jsonStatus" class="status-line status-ok">JSON valid</div>
       <button id="exportPackageBtn" class="btn success">Export DEV Package (.zip)</button>
       <button id="saveJsonBtn" class="btn secondary">Save JSON Only</button>
@@ -504,8 +511,7 @@
 
     function defaultTextureAssets(){
       return [
-        makeTextureAsset('particle.png', PIXI.Texture.from('particle.png')),
-        makeTextureAsset('b_flare.png', PIXI.Texture.from('b_flare.png'))
+        makeTextureAsset('particle.png', PIXI.Texture.from('particle.png'))
       ];
     }
 
@@ -546,7 +552,7 @@
           { type:'rotation', config:{ minStart:-120, maxStart:120, minSpeed:-10, maxSpeed:10, accel:0 } },
           { type:'spawnShape', config:{ type:'torus', data:{ x:0, y:0, radius:10, innerRadius:0, affectRotation:false } } },
           { type:'blendMode', config:{ blendMode:'normal' } },
-          { type:'textureRandom', config:{ textures:['particle.png','b_flare.png'] } }
+          { type:'textureSingle', config:{ texture:'particle.png' } }
         ]
       };
     }
@@ -995,6 +1001,7 @@
     function updateConfigText(){
       if(selectedIndex>=0 && configs[selectedIndex])
         document.getElementById('configArea').value=JSON.stringify(configs[selectedIndex],null,2);
+        clearJsonErrorHighlight();
         setJsonStatus('JSON valid','ok');
     }
 
@@ -1092,6 +1099,67 @@
       el.className='status-line '+(type==='error'?'status-error':type==='warn'?'status-warn':'status-ok');
     }
 
+    function jsonErrorLocation(err, text, textarea){
+      const message=String(err && err.message || '');
+      let line=null, column=null, position=null;
+      let m=message.match(/line\s+(\d+)\s+column\s+(\d+)/i);
+      if(m){ line=Number(m[1]); column=Number(m[2]); }
+      m=message.match(/position\s+(\d+)/i);
+      if(m) position=Number(m[1]);
+      if((line==null || column==null) && Number.isFinite(position)){
+        const before=text.slice(0,Math.max(0,position));
+        const parts=before.split('\n');
+        line=parts.length;
+        column=parts[parts.length-1].length+1;
+      }
+      // Some browsers don't expose a position. Fall back to the caret line,
+      // which is normally where the user just introduced the syntax error.
+      if(line==null){
+        const pos=textarea ? textarea.selectionStart : text.length;
+        const before=text.slice(0,Math.max(0,pos));
+        const parts=before.split('\n');
+        line=parts.length;
+        column=parts[parts.length-1].length+1;
+      }
+      return {line:Math.max(1,line||1),column:Math.max(1,column||1)};
+    }
+
+    function clearJsonErrorHighlight(){
+      const wrap=document.getElementById('jsonEditorWrap');
+      const hl=document.getElementById('jsonErrorHighlight');
+      if(wrap) wrap.classList.remove('has-error');
+      if(hl){ hl.style.display='none'; hl.dataset.line=''; }
+    }
+
+    function updateJsonErrorHighlight(line){
+      const ta=document.getElementById('configArea');
+      const wrap=document.getElementById('jsonEditorWrap');
+      const hl=document.getElementById('jsonErrorHighlight');
+      if(!ta || !wrap || !hl || !line){ clearJsonErrorHighlight(); return; }
+      const cs=getComputedStyle(ta);
+      const lineHeight=parseFloat(cs.lineHeight) || 17.4;
+      const paddingTop=parseFloat(cs.paddingTop) || 0;
+      const borderTop=parseFloat(cs.borderTopWidth) || 0;
+      const top=borderTop + paddingTop + (line-1)*lineHeight - ta.scrollTop;
+      const visibleBottom=ta.clientHeight;
+      wrap.classList.add('has-error');
+      hl.dataset.line=String(line);
+      hl.style.height=lineHeight+'px';
+      if(top+lineHeight < 0 || top > visibleBottom){
+        hl.style.display='none';
+      }else{
+        hl.style.display='block';
+        hl.style.top=top+'px';
+      }
+    }
+
+    function showJsonParseError(err){
+      const ta=document.getElementById('configArea');
+      const loc=jsonErrorLocation(err,ta.value,ta);
+      updateJsonErrorHighlight(loc.line);
+      setJsonStatus(`JSON error · line ${loc.line}, column ${loc.column}: ${err.message}`,'error');
+    }
+
     // JSON text -> config -> sliders, live.
     document.getElementById('configArea').addEventListener('input', ()=>{
       if(selectedIndex<0) return;
@@ -1104,10 +1172,17 @@
         populateForm();
         updateTextureList();
         updateSequenceUI();
+        clearJsonErrorHighlight();
         setJsonStatus('JSON valid','ok');
       } catch(err) {
-        setJsonStatus('JSON error: '+err.message,'error');
+        showJsonParseError(err);
       }
+    });
+
+    document.getElementById('configArea').addEventListener('scroll', ()=>{
+      const hl=document.getElementById('jsonErrorHighlight');
+      const line=hl && Number(hl.dataset.line);
+      if(line) updateJsonErrorHighlight(line);
     });
 
 
@@ -1583,6 +1658,7 @@ export { RandomizedAnimatedTextureBehavior };\n`;
     function clearEditorSelection(){
       selectedIndex=-1;
       document.getElementById('configArea').value='';
+      clearJsonErrorHighlight();
       setJsonStatus('No emitters','ok');
       const list=document.getElementById('textureList');
       if(list) list.innerHTML='';
