@@ -296,6 +296,32 @@
         <div id="textureList"></div>
       </div>
 
+      <div class="option-group" id="sequenceSection">
+        <h2>Sequence particle</h2>
+        <label>
+          <input type="checkbox" id="sequenceEnabled">
+          Использовать секвенцию
+        </label>
+        <label style="display:block;">
+          Кадры секвенции
+          <input type="file" id="sequenceFiles" accept="image/*" multiple style="display:block; margin-top:8px;">
+        </label>
+        <label>
+          FPS
+          <input type="number" id="sequenceFps" min="1" max="120" step="1" value="24">
+        </label>
+        <label>
+          <input type="checkbox" id="sequenceRandomStart" checked>
+          Random start frame
+        </label>
+        <label>
+          <input type="checkbox" id="sequenceLoop" checked>
+          Loop
+        </label>
+        <div id="sequenceInfo" style="font-size:0.85rem; color:#666; margin-top:8px;">Кадры не загружены</div>
+        <button id="clearSequenceBtn" class="btn" style="background:#d9534f;">Очистить секвенцию</button>
+      </div>
+
       <div class="option-group">
         <h2>Экспорт</h2>
         <label>
@@ -385,29 +411,105 @@
     ];
 
     // Per-emitter data
-    let emitters = [], configs = [], texturesList = [], names = [];
+    let emitters = [], configs = [], texturesList = [], names = [], sequences = [];
     let selectedIndex = 0, elapsed = Date.now();
+
+    function makeSequenceState(){
+      return {
+        enabled: false,
+        frames: [],
+        urls: [],
+        fps: 24,
+        randomStart: true,
+        loop: true
+      };
+    }
+
+    function getSequenceState(i){
+      if(!sequences[i]) sequences[i] = makeSequenceState();
+      return sequences[i];
+    }
+
+    function destroySequenceState(seq){
+      if(!seq) return;
+      (seq.urls || []).forEach(url => {
+        try { URL.revokeObjectURL(url); } catch {}
+      });
+      seq.frames = [];
+      seq.urls = [];
+    }
 
     // Create emitter
     function createEmitter(i){
       if(emitters[i]){
         emitters[i].cleanup(); emitters[i].destroy();
       }
+
+      const seq = getSequenceState(i);
+      const art = (seq.enabled && seq.frames.length)
+        ? [seq.frames[0]]
+        : texturesList[i];
+
       emitters[i] = new PIXI.particles.Emitter(
         particleContainer,
-        texturesList[i],
+        art,
         configs[i]
       );
       emitters[i].updateSpawnPos(emitterContainer.x, emitterContainer.y);
     }
 
+    // Apply an image sequence to every live particle of an emitter.
+    // Each particle gets its own random phase the first time we see it.
+    function updateEmitterSequence(emitter, emitterIndex){
+      const seq = getSequenceState(emitterIndex);
+      if(!seq.enabled || !seq.frames.length || !emitter) return;
+
+      const frameCount = seq.frames.length;
+      const fps = Math.max(1, Number(seq.fps) || 24);
+
+      // pixi-particles v4 keeps active particles as a linked list.
+      let p = emitter._activeParticlesFirst;
+      while(p){
+        const age = Math.max(0, Number(p.age) || 0);
+
+        // Particle objects are pooled in pixi-particles v4.
+        // If age jumped backwards, this object has just been spawned again:
+        // assign a fresh random phase for the new particle.
+        if(
+          p.__sequenceOffset === undefined ||
+          p.__sequenceLastAge === undefined ||
+          age < p.__sequenceLastAge
+        ){
+          p.__sequenceOffset = seq.randomStart
+            ? Math.floor(Math.random() * frameCount)
+            : 0;
+        }
+        p.__sequenceLastAge = age;
+
+        let frame = Math.floor(age * fps) + p.__sequenceOffset;
+
+        if(seq.loop){
+          frame = frame % frameCount;
+        } else {
+          frame = Math.min(frame, frameCount - 1);
+        }
+
+        if(p.texture !== seq.frames[frame]){
+          p.texture = seq.frames[frame];
+        }
+
+        p = p.next;
+      }
+    }
+
     // Ticker
     app.ticker.add(()=>{
       const now = Date.now();
-      emitters.forEach(em=>{
+      emitters.forEach((em, i)=>{
         if(em){
           em.updateSpawnPos(emitterContainer.x, emitterContainer.y);
           em.update((now-elapsed)*0.001);
+          updateEmitterSequence(em, i);
         }
       });
       elapsed = now;
@@ -468,11 +570,13 @@
         configs.push(cfg);
         texturesList.push(defaultTextures.slice());
         names.push('Emitter 1');
+        sequences.push(makeSequenceState());
         createEmitter(0);
         document.getElementById('configArea').value = JSON.stringify(cfg,null,2);
         populateForm();
         refreshEmitterList();
         updateTextureList();
+        updateSequenceUI();
       });
 
     // JSON import modal
@@ -487,11 +591,13 @@
         configs.push(cfg);
         texturesList.push(defaultTextures.slice());
         names.push(`Emitter ${configs.length}`);
+        sequences.push(makeSequenceState());
         createEmitter(configs.length-1);
         selectedIndex=configs.length-1;
         populateForm();
         refreshEmitterList();
         updateTextureList();
+        updateSequenceUI();
         jsonModal.style.display='none';
       };
       reader.readAsText(f);
@@ -513,6 +619,74 @@
       texModal.style.display='none';
     };
 
+    // Sequence controls
+    function updateSequenceUI(){
+      if(selectedIndex < 0) return;
+      const seq = getSequenceState(selectedIndex);
+      document.getElementById('sequenceEnabled').checked = seq.enabled;
+      document.getElementById('sequenceFps').value = seq.fps;
+      document.getElementById('sequenceRandomStart').checked = seq.randomStart;
+      document.getElementById('sequenceLoop').checked = seq.loop;
+      document.getElementById('sequenceInfo').textContent = seq.frames.length
+        ? `${seq.frames.length} кадров загружено`
+        : 'Кадры не загружены';
+    }
+
+    document.getElementById('sequenceFiles').addEventListener('change', function(){
+      const files = Array.from(this.files || []);
+      if(!files.length || selectedIndex < 0) return;
+
+      // Sort by filename so coin_01, coin_02, ... play in the expected order.
+      files.sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
+
+      const seq = getSequenceState(selectedIndex);
+      destroySequenceState(seq);
+      seq.frames = [];
+      seq.urls = [];
+
+      files.forEach(file=>{
+        const url = URL.createObjectURL(file);
+        seq.urls.push(url);
+        seq.frames.push(PIXI.Texture.from(url));
+      });
+
+      seq.enabled = true;
+      createEmitter(selectedIndex);
+      updateSequenceUI();
+      this.value = '';
+    });
+
+    document.getElementById('sequenceEnabled').addEventListener('change', function(){
+      const seq = getSequenceState(selectedIndex);
+      seq.enabled = this.checked;
+      createEmitter(selectedIndex);
+      updateSequenceUI();
+    });
+
+    document.getElementById('sequenceFps').addEventListener('input', function(){
+      getSequenceState(selectedIndex).fps = Math.max(1, parseFloat(this.value) || 24);
+    });
+
+    document.getElementById('sequenceRandomStart').addEventListener('change', function(){
+      const seq = getSequenceState(selectedIndex);
+      seq.randomStart = this.checked;
+      // Recreate so already pooled particles don't keep an old random offset.
+      createEmitter(selectedIndex);
+    });
+
+    document.getElementById('sequenceLoop').addEventListener('change', function(){
+      getSequenceState(selectedIndex).loop = this.checked;
+    });
+
+    document.getElementById('clearSequenceBtn').addEventListener('click', ()=>{
+      if(selectedIndex < 0) return;
+      const seq = getSequenceState(selectedIndex);
+      destroySequenceState(seq);
+      seq.enabled = false;
+      createEmitter(selectedIndex);
+      updateSequenceUI();
+    });
+
     // Emitter list UI
     function refreshEmitterList(){
       const ul=document.getElementById('emitterList');
@@ -529,14 +703,15 @@
         del.onclick = e=>{
           e.stopPropagation();
           if(emitters[i]){ emitters[i].cleanup(); emitters[i].destroy(); }
-          configs.splice(i,1); texturesList.splice(i,1); names.splice(i,1); emitters.splice(i,1);
+          destroySequenceState(sequences[i]);
+          configs.splice(i,1); texturesList.splice(i,1); names.splice(i,1); emitters.splice(i,1); sequences.splice(i,1);
           if(selectedIndex>=configs.length) selectedIndex=configs.length-1;
-          refreshEmitterList(); populateForm(); updateTextureList();
+          refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI();
         };
         li.append(inp, del);
         li.onclick = ()=>{
           selectedIndex=i;
-          refreshEmitterList(); populateForm(); updateTextureList();
+          refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI();
         };
         ul.appendChild(li);
       });
@@ -547,9 +722,10 @@
       configs.push(copy);
       texturesList.push(defaultTextures.slice());
       names.push(`Emitter ${configs.length}`);
+      sequences.push(makeSequenceState());
       createEmitter(configs.length-1);
       selectedIndex=configs.length-1;
-      refreshEmitterList(); populateForm(); updateTextureList();
+      refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI();
     };
 
     // Populate form fields
@@ -658,7 +834,14 @@
       let idx=0, first=null;
       (function next(){
         if(idx>=total){ if(first) saveFrame(first,idx); return; }
-        const now=Date.now(); emitters.forEach(em=>em&&em.update((now-elapsed)*0.001)); elapsed=now;
+        const now=Date.now();
+        emitters.forEach((em,i)=>{
+          if(em){
+            em.update((now-elapsed)*0.001);
+            updateEmitterSequence(em,i);
+          }
+        });
+        elapsed=now;
         const rt=PIXI.RenderTexture.create(app.screen.width,app.screen.height);
         app.renderer.render(app.stage,rt);
         const canvas=app.renderer.extract.canvas(rt);
