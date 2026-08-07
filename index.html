@@ -1,190 +1,113 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Редактор эмиттера с современным дизайном</title>
-  <!-- PixiJS & PixiParticles -->
-  <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.8/dist/browser/pixi.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pixi-particles@4.3.0/dist/pixi-particles.min.js"></script>
+  <title>Pixi Particle Emitter Studio</title>
+  <!-- Production match: PixiJS 6.5.6 & @pixi/particle-emitter 5.0.8 -->
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@6.5.6/dist/browser/pixi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@pixi/particle-emitter@5.0.8/dist/particle-emitter.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <style>
-    /* Общие сбросы */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: "Segoe UI", Tahoma, sans-serif; background: #f0f2f5; color: #333; }
-
-    /* Контейнер приложения */
-    #container { display: flex; height: 100vh; }
-
-    /* Сайдбар */
-    #sidebar {
-      width: 380px;
-      background: #fff;
-      padding: 20px;
-      border-right: 1px solid #e0e0e0;
-      overflow-y: auto;
+    :root{
+      --bg:#0b0f14;
+      --panel:#10161f;
+      --panel-2:#151d28;
+      --panel-3:#1a2431;
+      --border:#263243;
+      --border-soft:#202b3a;
+      --text:#e8eef7;
+      --muted:#8f9daf;
+      --accent:#5b8cff;
+      --accent-2:#76a0ff;
+      --success:#42c77a;
+      --danger:#ff6577;
+      --warning:#f5b94c;
+      --shadow:0 12px 32px rgba(0,0,0,.28);
+      --radius:12px;
     }
-    #sidebar h2 {
-      font-size: 1.4rem;
-      margin-bottom: 16px;
-      color: #007acc;
-      border-bottom: 2px solid #007acc;
-      padding-bottom: 4px;
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{width:100%;height:100%;overflow:hidden}
+    body{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+    button,input,textarea{font:inherit}
+    #container{display:flex;height:100vh;background:var(--bg)}
+    #sidebar{
+      width:410px;min-width:360px;max-width:46vw;height:100vh;overflow-y:auto;overflow-x:hidden;
+      padding:18px;background:linear-gradient(180deg,#111823 0%,#0e141d 100%);border-right:1px solid var(--border);box-shadow:8px 0 28px rgba(0,0,0,.18);z-index:3;
+      scrollbar-width:thin;scrollbar-color:#344257 transparent;
     }
-    textarea {
-      width: 100%;
-      height: 120px;
-      font-family: monospace;
-      font-size: 0.9rem;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: #fafafa;
-      resize: vertical;
+    #sidebar::-webkit-scrollbar{width:8px}#sidebar::-webkit-scrollbar-thumb{background:#344257;border-radius:8px}#sidebar::-webkit-scrollbar-track{background:transparent}
+    .brand-header{padding:3px 2px 16px;margin-bottom:14px;border-bottom:1px solid var(--border-soft)}
+    .brand-header h2{font-size:20px;line-height:1.2;font-weight:750;color:#f4f7fb;letter-spacing:-.02em;margin:0;border:0;padding:0}
+    .brand-meta{font-size:11px;color:var(--muted);margin-top:7px;letter-spacing:.02em}
+    textarea{
+      width:100%;height:150px;resize:vertical;padding:12px 13px;background:#0a1017;color:#cdd9e8;border:1px solid var(--border);border-radius:10px;
+      font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:12px;line-height:1.45;outline:none;transition:border-color .16s,box-shadow .16s,background .16s;
     }
-    .btn {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 10px 14px;
-      background: #007acc;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: background 0.2s ease;
+    textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,140,255,.13);background:#0c131c}
+    textarea::placeholder{color:#667487}
+    .status-line{font-size:11px;margin:7px 2px 4px;min-height:16px}.status-ok{color:var(--success)}.status-error{color:var(--danger)}.status-warn{color:var(--warning)}
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;min-height:34px;margin:7px 6px 0 0;padding:7px 11px;border:1px solid transparent;border-radius:8px;
+      background:var(--accent);color:white;font-size:12px;font-weight:650;cursor:pointer;transition:transform .12s,background .15s,border-color .15s,box-shadow .15s;box-shadow:0 2px 8px rgba(0,0,0,.16);
     }
-    .btn:hover { background: #005fa3; }
-
-    .option-group {
-      margin: 20px 0;
-      padding: 16px;
-      background: #fbfbfb;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-    }
-    .option-group h2 {
-      font-size: 1.1rem;
-      margin-bottom: 12px;
-      color: #555;
-    }
-    label {
-      display: flex;
-      align-items: center;
-      margin-bottom: 12px;
-      font-size: 0.9rem;
-    }
-    label span {
-      margin-left: auto;
-      width: 40px;
-      text-align: right;
-      font-weight: bold;
-    }
-    input[type="range"] { flex: 1; margin: 0 10px; }
-    input[type="number"], input[type="color"] {
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
-    input[type="checkbox"] { margin-right: 6px; }
-
-    /* Список эмиттеров */
-    #emitterList { list-style: none; margin-top: 8px; }
-    #emitterList li {
-      display: flex;
-      align-items: center;
-      padding: 8px;
-      margin-bottom: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      transition: background 0.2s, border-color 0.2s;
-    }
-    #emitterList li:hover { background: #f9f9f9; }
-    #emitterList li.active {
-      background: #e8f4ff;
-      border-color: #007acc;
-    }
-    #emitterList li input[type="text"] {
-      flex: 1;
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
-    #emitterList li button {
-      margin-left: 8px;
-      background: #d9534f;
-    }
-
-    /* Основная область Pixi */
-    #main { flex: 1; background: #000; position: relative; }
-    #main canvas { width: 100%; height: 100%; display: block; }
-
-    /* Обратный отсчёт */
-    #countdownOverlay {
-      position: absolute; top:0; left:0; width:100%; height:100%;
-      background: rgba(0,0,0,0.6); color: #fff;
-      font-size: 3rem; display: flex;
-      align-items: center; justify-content: center;
-      pointer-events: none; z-index: 100; display: none;
-    }
-
-    /* Модальное окно */
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      align-items: center; justify-content: center;
-      z-index: 200;
-    }
-    .modal-content {
-      background: #fff;
-      padding: 24px;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      position: relative;
-    }
-    .modal-content h2 {
-      margin-bottom: 16px;
-      color: #007acc;
-      font-size: 1.3rem;
-    }
-    .modal-content input[type="file"] {
-      display: block;
-      margin-top: 8px;
-    }
-    .close {
-      position: absolute;
-      top: 12px; right: 16px;
-      font-size: 24px;
-      cursor: pointer;
-      color: #888;
-      transition: color 0.2s;
-    }
-    .close:hover { color: #555; }
+    .btn:hover{background:var(--accent-2);box-shadow:0 4px 14px rgba(0,0,0,.22)}.btn:active{transform:translateY(1px)}
+    .btn.secondary{background:#1a2431;border-color:#324054;color:#dbe5f2}.btn.secondary:hover{background:#222e3e;border-color:#43536a}
+    .btn.success{background:#247a4b}.btn.success:hover{background:#2d955c}
+    .option-group{margin:14px 0;padding:14px;background:linear-gradient(180deg,var(--panel-2),#131b25);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+    .option-group h2{font-size:12px;line-height:1;text-transform:uppercase;letter-spacing:.09em;margin-bottom:14px;color:#9eb0c8;font-weight:750}
+    label{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:#c8d3e0;font-size:12px;min-height:28px}
+    label:last-child{margin-bottom:0}label span{margin-left:auto;width:42px;text-align:right;color:#eef4fb;font-variant-numeric:tabular-nums;font-weight:700;font-size:11px}
+    input[type="range"]{flex:1;min-width:70px;margin:0 2px;accent-color:var(--accent)}
+    input[type="number"],input[type="text"]{background:#0d141d;color:var(--text);border:1px solid #2b394b;border-radius:7px;padding:6px 8px;outline:none;transition:border-color .15s,box-shadow .15s}
+    input[type="number"]{width:90px;margin-left:auto}input[type="text"]:focus,input[type="number"]:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(91,140,255,.12)}
+    input[type="color"]{margin-left:auto;width:42px;height:28px;padding:2px;background:#0d141d;border:1px solid #2b394b;border-radius:7px;cursor:pointer}
+    input[type="checkbox"],input[type="radio"]{accent-color:var(--accent);width:15px;height:15px;flex:0 0 auto}
+    input[type="file"]{color:#9baabd;font-size:11px;max-width:100%}input[type="file"]::file-selector-button{margin-right:8px;background:#202b3a;color:#d9e3ef;border:1px solid #344257;border-radius:7px;padding:6px 9px;cursor:pointer}
+    #emitterList{list-style:none;margin-top:4px}
+    #emitterList li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px;padding:7px;margin-bottom:7px;background:#0f1620;border:1px solid #263243;border-radius:9px;transition:background .15s,border-color .15s,box-shadow .15s}
+    #emitterList li:hover{background:#131c28;border-color:#36465c}#emitterList li.active{background:#16233a;border-color:#4f7fe5;box-shadow:inset 3px 0 0 var(--accent)}
+    #emitterList li input[type="text"]{width:100%;min-width:0;background:transparent;border-color:transparent;font-weight:600;padding:6px 7px}#emitterList li input[type="text"]:focus{background:#0c131c;border-color:#3c5270}
+    #emitterList li button{margin:0!important;min-height:28px;padding:5px 8px;border:1px solid #334258;border-radius:7px;color:#dbe5f2;background:#202b3a!important;font-size:11px;cursor:pointer;transition:background .15s,border-color .15s}
+    #emitterList li button:hover{background:#2a3749!important;border-color:#4a5c74}#emitterList li button:last-child{color:#ffb8c0;border-color:#59313a;background:#2b171d!important}#emitterList li button:last-child:hover{background:#3a1d25!important;border-color:#7b3f4b}
+    #main{flex:1;min-width:0;background:#05070a;position:relative;overflow:hidden}#main:after{content:"PREVIEW";position:absolute;right:16px;top:14px;color:rgba(255,255,255,.28);font-size:10px;font-weight:800;letter-spacing:.14em;pointer-events:none}
+    #main canvas{width:100%;height:100%;display:block}
+    #countdownOverlay{position:absolute;inset:0;background:rgba(5,8,12,.68);backdrop-filter:blur(4px);color:#fff;font-size:54px;font-weight:800;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:100}
+    .modal{display:none;position:fixed;inset:0;background:rgba(3,6,10,.72);backdrop-filter:blur(5px);align-items:center;justify-content:center;z-index:200}
+    .modal-content{background:#151e29;padding:22px;border-radius:14px;width:90%;max-width:420px;border:1px solid #304055;box-shadow:var(--shadow);position:relative}.modal-content h2{margin-bottom:16px;color:#f1f5fa;font-size:16px}.modal-content input[type="file"]{display:block;margin-top:8px}.close{position:absolute;top:11px;right:14px;font-size:24px;line-height:1;cursor:pointer;color:#718097;transition:color .15s}.close:hover{color:white}
+    #textureList{margin-top:8px;display:flex;flex-direction:column;gap:6px}.textureItem{display:flex;align-items:center;gap:8px;background:#0e151e;border:1px solid #263243;border-radius:8px;padding:6px}.textureItem img{width:34px;height:34px;object-fit:contain;background:#070b10;border-radius:6px}.textureItem button{margin-left:auto;background:#2b171d;color:#ffb8c0;border:1px solid #59313a;border-radius:6px;padding:5px 7px;cursor:pointer}
+    #sequenceInfo{font-size:11px!important;color:var(--muted)!important;margin:8px 0 2px!important;word-break:break-word}
+    #clearSequenceBtn{background:#2b171d!important;border:1px solid #59313a;color:#ffb8c0}#clearSequenceBtn:hover{background:#3a1d25!important}
+    .spawn-editor{margin-top:14px;padding-top:14px;border-top:1px solid #273140}.subsection-title{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7f91a8;margin-bottom:10px}.spawn-settings{display:none}.spawn-settings.active{display:block}.spawn-note{font-size:.78rem;line-height:1.45;color:#7f91a8;padding:7px 0 2px}select{background:#10161f;color:#dce7f5;border:1px solid #344154;border-radius:7px;padding:6px 8px;min-width:132px;outline:none}select:focus{border-color:#4da3ff;box-shadow:0 0 0 2px rgba(77,163,255,.12)}
+    @media(max-width:900px){#sidebar{width:360px}.btn{padding:7px 9px}}
   </style>
 </head>
 <body>
 
   <div id="container">
-    <!-- Сайдбар -->
+    <!-- Sidebar -->
     <div id="sidebar">
-      <h2>Редактор emitter.json</h2>
-      <textarea id="configArea" placeholder="Загрузка конфигурации..."></textarea>
-      <button id="saveJsonBtn" class="btn">Сохранить JSON</button>
-      <button id="openJsonModalBtn" class="btn">Импорт JSON</button>
+      <div class="brand-header"><h2>Particle Emitter Studio</h2><div class="brand-meta">PixiJS 6.5.6 · @pixi/particle-emitter 5.0.8</div></div>
+      <textarea id="configArea" placeholder="Emitter JSON configuration..."></textarea>
+      <div id="jsonStatus" class="status-line status-ok">JSON valid</div>
+      <button id="exportPackageBtn" class="btn success">Export DEV Package (.zip)</button>
+      <button id="saveJsonBtn" class="btn secondary">Save JSON Only</button>
+      <button id="importPackageBtn" class="btn">Import DEV Package</button>
+      <input type="file" id="packageFileInput" accept=".zip,application/zip" style="display:none;">
+      <button id="openJsonModalBtn" class="btn secondary">Import JSON Only</button>
 
       <div class="option-group" id="emitterListSection">
-        <h2>Эмиттеры</h2>
+        <h2>Emitters</h2>
         <ul id="emitterList"></ul>
-        <button id="createEmitterBtn" class="btn">Создать эмиттер</button>
+        <button id="createEmitterBtn" class="btn">Create New Emitter</button>
       </div>
 
       <div class="option-group" id="configForm">
-        <h2>Параметры эмиттера</h2>
+        <h2>Emitter Settings</h2>
+        <label>
+          <input type="checkbox" id="additiveBlend">
+          Additive blend
+        </label>
         <label>
           Alpha Start
           <input type="range" id="alphaStart" min="0" max="1" step="0.01">
@@ -268,31 +191,79 @@
           Max Particles
           <input type="number" id="maxParticles" step="1">
         </label>
-        <label>
-          Spawn Radius
-          <input type="range" id="spawnCircleR" min="0" max="50" step="1">
-          <span id="spawnCircleRVal"></span>
-        </label>
+        <div class="spawn-editor">
+          <div class="subsection-title">Spawn</div>
+          <label>
+            Spawn Type
+            <select id="spawnType">
+              <option value="point">Point</option>
+              <option value="circle">Circle</option>
+              <option value="ring">Ring</option>
+              <option value="rect">Rectangle</option>
+              <option value="burst">Burst</option>
+            </select>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" id="showSpawnGizmo" checked>
+            Show Spawn Gizmo
+          </label>
+
+          <div id="spawnCircleSettings" class="spawn-settings">
+            <label>
+              Radius
+              <input type="range" id="spawnCircleR" min="0" max="500" step="1">
+              <span id="spawnCircleRVal"></span>
+            </label>
+          </div>
+
+          <div id="spawnRingSettings" class="spawn-settings">
+            <label>
+              Outer Radius
+              <input type="range" id="spawnRingOuter" min="0" max="500" step="1">
+              <span id="spawnRingOuterVal"></span>
+            </label>
+            <label>
+              Inner Radius
+              <input type="range" id="spawnRingInner" min="0" max="500" step="1">
+              <span id="spawnRingInnerVal"></span>
+            </label>
+          </div>
+
+          <div id="spawnRectSettings" class="spawn-settings">
+            <label>Rectangle Width <input type="number" id="spawnRectW" min="0" step="1"></label>
+            <label>Rectangle Height <input type="number" id="spawnRectH" min="0" step="1"></label>
+            <label>Center Offset X <input type="number" id="spawnRectX" step="1"></label>
+            <label>Center Offset Y <input type="number" id="spawnRectY" step="1"></label>
+          </div>
+
+          <div id="spawnBurstSettings" class="spawn-settings">
+            <label>Start Angle <input type="number" id="spawnBurstStart" step="1"></label>
+            <label>Angle Spacing <input type="number" id="spawnBurstSpacing" min="0" step="1"></label>
+            <label>Spawn Distance <input type="range" id="spawnBurstDistance" min="0" max="500" step="1"><span id="spawnBurstDistanceVal"></span></label>
+            <label>Particles per Wave <input type="number" id="spawnBurstParticles" min="1" max="100" step="1"></label>
+          </div>
+          <div id="spawnPointSettings" class="spawn-settings spawn-note">Particles spawn exactly at the emitter position.</div>
+        </div>
       </div>
 
       <div class="option-group" id="bgSection">
-        <h2>Фон</h2>
-        <label><input type="radio" name="bgType" value="color" checked> Цвет</label>
-        <label><input type="radio" name="bgType" value="image"> Изображение</label>
+        <h2>Background</h2>
+        <label><input type="radio" name="bgType" value="color" checked> Color</label>
+        <label><input type="radio" name="bgType" value="image"> Image</label>
         <label id="colorPickerLabel">
-          Цвет
+          Color
           <input type="color" id="bgColor" value="#000000">
         </label>
         <label id="bgFileLabel" style="display:none;">
-          Файл
+          File
           <input type="file" id="bgFile" accept="image/*">
         </label>
-        <button id="applyBgBtn" class="btn">Применить фон</button>
+        <button id="applyBgBtn" class="btn">Apply Background</button>
       </div>
 
       <div class="option-group" id="textureSection">
-        <h2>Текстуры</h2>
-        <button id="openTextureModalBtn" class="btn">Добавить текстуру</button>
+        <h2>Textures</h2>
+        <button id="openTextureModalBtn" class="btn">Add Texture</button>
         <div id="textureList"></div>
       </div>
 
@@ -300,15 +271,21 @@
         <h2>Sequence particle</h2>
         <label>
           <input type="checkbox" id="sequenceEnabled">
-          Использовать секвенцию
+          Use Sequence
         </label>
         <label style="display:block;">
-          Кадры секвенции
+          Sequence Frames
           <input type="file" id="sequenceFiles" accept="image/*" multiple style="display:block; margin-top:8px;">
         </label>
         <label>
-          FPS
-          <input type="number" id="sequenceFps" min="1" max="120" step="1" value="24">
+          Speed Min
+          <input type="range" id="sequenceFpsMin" min="1" max="120" step="1" value="24">
+          <span id="sequenceFpsMinVal">24</span>
+        </label>
+        <label>
+          Speed Max
+          <input type="range" id="sequenceFpsMax" min="1" max="120" step="1" value="24">
+          <span id="sequenceFpsMaxVal">24</span>
         </label>
         <label>
           <input type="checkbox" id="sequenceRandomStart" checked>
@@ -318,27 +295,28 @@
           <input type="checkbox" id="sequenceLoop" checked>
           Loop
         </label>
-        <div id="sequenceInfo" style="font-size:0.85rem; color:#666; margin-top:8px;">Кадры не загружены</div>
-        <button id="clearSequenceBtn" class="btn" style="background:#d9534f;">Очистить секвенцию</button>
+        <div id="sequenceInfo" style="font-size:0.85rem; color:#666; margin-top:8px;">No frames loaded</div>
+        <button id="clearSequenceBtn" class="btn" style="background:#d9534f;">Clear Sequence</button>
       </div>
 
       <div class="option-group">
-        <h2>Экспорт</h2>
+        <h2>Preview Export</h2>
         <label>
-          Кадров
+          Frames
           <input type="range" id="frameCount" min="1" max="120" step="1" value="30">
           <span id="frameCountVal">30</span>
         </label>
-        <label><input type="checkbox" id="exportNoBackground" checked> Без фона</label>
-        <button id="exportAnimBtn" class="btn">Сохранить анимацию</button>
+        <label><input type="checkbox" id="exportNoBackground" checked> Transparent Background</label>
+        <button id="restartPreviewBtn" class="btn secondary">Restart Preview</button>
+        <button id="exportAnimBtn" class="btn">Export Animation Frames</button>
       </div>
     </div>
 
-    <!-- Основная канвас-область -->
+    <!-- Main Pixi canvas -->
     <div id="main"></div>
   </div>
 
-  <!-- Оверлей и индикатор -->
+  <!-- Overlay and emitter indicator -->
   <div id="countdownOverlay"></div>
   <div id="emitterIndicator" style="display:none;"></div>
 
@@ -346,7 +324,7 @@
   <div id="jsonModal" class="modal">
     <div class="modal-content">
       <span class="close">&times;</span>
-      <h2>Импорт JSON эмиттера</h2>
+      <h2>Import Emitter JSON</h2>
       <input type="file" id="jsonFileInput" accept="application/json">
     </div>
   </div>
@@ -355,14 +333,14 @@
   <div id="textureModal" class="modal">
     <div class="modal-content">
       <span class="close">&times;</span>
-      <h2>Добавить текстуру</h2>
+      <h2>Add Texture</h2>
       <input type="file" id="textureFileInput" accept="image/*">
-      <button id="addTextureConfirmBtn" class="btn">Добавить</button>
+      <button id="addTextureConfirmBtn" class="btn">Add</button>
     </div>
   </div>
 
   <script>
-    // === PIXI Initialization ===
+    // === PIXI Initialization (production match: PixiJS 6.5.6 + @pixi/particle-emitter 5.0.8) ===
     const app = new PIXI.Application({
       width: document.getElementById('main').clientWidth,
       height: document.getElementById('main').clientHeight,
@@ -374,6 +352,7 @@
     const bgContainer = new PIXI.Container();
     app.stage.addChildAt(bgContainer, 0);
     let bgSprite = null;
+    let bgObjectUrl = null;
 
     const particleContainer = new PIXI.Container();
     app.stage.addChild(particleContainer);
@@ -385,7 +364,13 @@
     emitterContainer.cursor = 'pointer';
     app.stage.addChild(emitterContainer);
 
-    // Drag emitter
+    // Visual spawn-area guide. Editor-only: never exported and never affects particles.
+    const spawnGizmo = new PIXI.Graphics();
+    spawnGizmo.eventMode = 'none';
+    spawnGizmo.interactive = false;
+    emitterContainer.addChild(spawnGizmo);
+
+    // Drag emitter (kept exactly as an editor feature)
     function onDragStart(e){ this.data=e.data; this.dragging=true; }
     function onDragEnd(){ this.dragging=false; this.data=null; }
     function onDragMove(){
@@ -402,24 +387,94 @@
       .on('pointerupoutside', onDragEnd)
       .on('pointermove', onDragMove);
 
-    const emitterIndicator = document.getElementById('emitterIndicator');
+    // -------------------------------------------------------------------------
+    // Custom v5 behavior: one shared animation sequence, but each particle gets
+    // its own random start frame and random playback FPS. This is registered
+    // through the official @pixi/particle-emitter v5 behavior API.
+    // -------------------------------------------------------------------------
+    class RandomizedAnimatedTextureBehavior {
+      constructor(config){
+        this.order = (PIXI.particles.behaviors && PIXI.particles.behaviors.BehaviorOrder) ? PIXI.particles.behaviors.BehaviorOrder.Normal : 2;
+        this.textures = (config.textures || []).map(t =>
+          typeof t === 'string' ? PIXI.Texture.from(t) : t
+        );
+        this.fpsMin = Math.max(1, Number(config.fpsMin) || 24);
+        this.fpsMax = Math.max(this.fpsMin, Number(config.fpsMax) || this.fpsMin);
+        this.randomStart = config.randomStart !== false;
+        this.loop = config.loop !== false;
+      }
 
-    // Default textures
-    const defaultTextures = [
-      PIXI.Texture.from('particle.png'),
-      PIXI.Texture.from('b_flare.png')
-    ];
+      initParticles(first){
+        // Initialization is intentionally lazy in updateParticle. That makes the
+        // behavior safe with pooled Particle objects and any particlesPerWave.
+      }
 
-    // Per-emitter data
-    let emitters = [], configs = [], texturesList = [], names = [], sequences = [];
-    let selectedIndex = 0, elapsed = Date.now();
+      updateParticle(particle){
+        if(!this.textures.length) return;
+        const age = Math.max(0, Number(particle.age) || 0);
+
+        if(
+          particle.__raeOwner !== this ||
+          particle.__raeLastAge === undefined ||
+          age < particle.__raeLastAge
+        ){
+          particle.__raeOwner = this;
+          particle.__raeOffset = this.randomStart
+            ? Math.floor(Math.random() * this.textures.length)
+            : 0;
+          particle.__raeFps = this.fpsMin === this.fpsMax
+            ? this.fpsMin
+            : this.fpsMin + Math.random() * (this.fpsMax - this.fpsMin);
+        }
+
+        particle.__raeLastAge = age;
+        let frame = Math.floor(age * particle.__raeFps) + particle.__raeOffset;
+        if(this.loop){
+          frame %= this.textures.length;
+        } else {
+          frame = Math.min(frame, this.textures.length - 1);
+        }
+        particle.texture = this.textures[frame];
+      }
+
+      recycleParticle(particle){
+        particle.__raeOwner = null;
+        particle.__raeLastAge = undefined;
+        particle.__raeOffset = undefined;
+        particle.__raeFps = undefined;
+      }
+    }
+    RandomizedAnimatedTextureBehavior.type = 'animatedRandomized';
+    RandomizedAnimatedTextureBehavior.editorConfig = null;
+
+    if(PIXI.particles && PIXI.particles.Emitter && PIXI.particles.Emitter.registerBehavior){
+      PIXI.particles.Emitter.registerBehavior(RandomizedAnimatedTextureBehavior);
+    } else {
+      throw new Error('@pixi/particle-emitter 5.x was not loaded correctly.');
+    }
+
+    // --- Per-emitter editor state ---
+    let emitters = [];
+    let configs = [];          // Always EmitterConfigV3 (production JSON)
+    let textureAssets = [];    // [{ name, texture, url, objectUrl }]
+    let names = [];
+    let sequences = [];        // { enabled, frames, frameNames, urls, fpsMin, fpsMax, randomStart, loop }
+    let spawnGizmoVisible = []; // editor-only, per emitter; never exported
+    let standardEmitterTemplate = null; // Exact normalized emitter loaded on first launch
+    let selectedIndex = 0;
+    let elapsed = Date.now();
+
+    const ART_BEHAVIORS = ['textureSingle','textureRandom','textureOrdered','animatedSingle','animatedRandom','animatedRandomized'];
 
     function makeSequenceState(){
       return {
         enabled: false,
         frames: [],
+        frameNames: [],
         urls: [],
-        fps: 24,
+        blobs: [],
+        fpsMin: 24,
+        fpsMax: 24,
         randomStart: true,
         loop: true
       };
@@ -432,435 +487,1249 @@
 
     function destroySequenceState(seq){
       if(!seq) return;
-      (seq.urls || []).forEach(url => {
-        try { URL.revokeObjectURL(url); } catch {}
-      });
+      (seq.urls || []).forEach(url => { try { URL.revokeObjectURL(url); } catch {} });
       seq.frames = [];
+      seq.frameNames = [];
       seq.urls = [];
+      seq.blobs = [];
     }
 
-    // Create emitter
-    function createEmitter(i){
-      if(emitters[i]){
-        emitters[i].cleanup(); emitters[i].destroy();
+    function makeTextureAsset(name, texture, objectUrl=null, blob=null){
+      return { name, texture, objectUrl, blob };
+    }
+
+    function destroyTextureAsset(asset){
+      if(asset && asset.objectUrl){ try { URL.revokeObjectURL(asset.objectUrl); } catch {} }
+    }
+
+    function defaultTextureAssets(){
+      return [
+        makeTextureAsset('particle.png', PIXI.Texture.from('particle.png')),
+        makeTextureAsset('b_flare.png', PIXI.Texture.from('b_flare.png'))
+      ];
+    }
+
+    function cloneJson(value){ return JSON.parse(JSON.stringify(value)); }
+
+    function findBehavior(c, type){
+      return (c && Array.isArray(c.behaviors)) ? c.behaviors.find(b=>b.type===type) : null;
+    }
+
+    function removeBehaviors(c, types){
+      if(!Array.isArray(c.behaviors)) c.behaviors=[];
+      c.behaviors = c.behaviors.filter(b=>!types.includes(b.type));
+    }
+
+    function upsertBehavior(c, type, config){
+      if(!Array.isArray(c.behaviors)) c.behaviors=[];
+      let b = c.behaviors.find(x=>x.type===type);
+      if(b) b.config = config;
+      else c.behaviors.push({type, config});
+      return b || c.behaviors[c.behaviors.length-1];
+    }
+
+    function makeDefaultV5Config(){
+      return {
+        lifetime: { min: 0.3, max: 0.8 },
+        frequency: 0.02,
+        spawnChance: 1,
+        particlesPerWave: 1,
+        emitterLifetime: -1,
+        maxParticles: 200,
+        pos: { x: 0, y: 0 },
+        addAtBack: false,
+        behaviors: [
+          { type:'alpha', config:{ alpha:{ list:[{value:1,time:0},{value:0,time:1}], isStepped:false } } },
+          { type:'scale', config:{ scale:{ list:[{value:1,time:0},{value:1,time:1}], isStepped:false }, minMult:1 } },
+          { type:'color', config:{ color:{ list:[{value:'#ffffff',time:0},{value:'#000000',time:1}], isStepped:false } } },
+          { type:'moveSpeed', config:{ speed:{ list:[{value:200,time:0},{value:50,time:1}], isStepped:false }, minMult:1 } },
+          { type:'rotation', config:{ minStart:-120, maxStart:120, minSpeed:-10, maxSpeed:10, accel:0 } },
+          { type:'spawnShape', config:{ type:'torus', data:{ x:0, y:0, radius:10, innerRadius:0, affectRotation:false } } },
+          { type:'blendMode', config:{ blendMode:'normal' } },
+          { type:'textureRandom', config:{ textures:['particle.png','b_flare.png'] } }
+        ]
+      };
+    }
+
+    // Convert old pixi-particles v4 configs to the exact v5 behavior format.
+    function normalizeConfigToV5(raw, artNames){
+      if(raw && Array.isArray(raw.behaviors)){
+        const c = cloneJson(raw);
+        if(!c.lifetime) c.lifetime={min:0.3,max:0.8};
+        if(c.frequency === undefined) c.frequency=0.02;
+        if(c.maxParticles === undefined) c.maxParticles=200;
+        if(c.spawnChance === undefined) c.spawnChance=1;
+        if(c.particlesPerWave === undefined) c.particlesPerWave=1;
+        if(c.emitterLifetime === undefined) c.emitterLifetime=-1;
+        if(!c.pos) c.pos={x:0,y:0};
+        return c;
       }
 
+      try {
+        if(PIXI.particles.upgradeConfig){
+          return PIXI.particles.upgradeConfig(cloneJson(raw || {}), artNames && artNames.length ? artNames : ['particle.png']);
+        }
+      } catch(err){
+        console.warn('upgradeConfig failed, using a safe v5 default:', err);
+      }
+      return makeDefaultV5Config();
+    }
+
+    function getAssetTexture(i, name){
+      const asset = (textureAssets[i] || []).find(a=>a.name===name);
+      return asset ? asset.texture : PIXI.Texture.from(name);
+    }
+
+    function getSequenceTexture(i, name, fallbackIndex){
       const seq = getSequenceState(i);
-      const art = (seq.enabled && seq.frames.length)
-        ? [seq.frames[0]]
-        : texturesList[i];
-
-      emitters[i] = new PIXI.particles.Emitter(
-        particleContainer,
-        art,
-        configs[i]
-      );
-      emitters[i].updateSpawnPos(emitterContainer.x, emitterContainer.y);
+      const idx = seq.frameNames.indexOf(name);
+      if(idx >= 0 && seq.frames[idx]) return seq.frames[idx];
+      if(seq.frames[fallbackIndex]) return seq.frames[fallbackIndex];
+      return PIXI.Texture.from(name);
     }
 
-    // Apply an image sequence to every live particle of an emitter.
-    // Each particle gets its own random phase the first time we see it.
-    function updateEmitterSequence(emitter, emitterIndex){
-      const seq = getSequenceState(emitterIndex);
-      if(!seq.enabled || !seq.frames.length || !emitter) return;
+    // Export config stays string-based and portable. Runtime config resolves those
+    // asset names to in-memory textures for preview only.
+    function makeRuntimeConfig(i){
+      const runtime = cloneJson(configs[i]);
 
-      const frameCount = seq.frames.length;
-      const fps = Math.max(1, Number(seq.fps) || 24);
-
-      // pixi-particles v4 keeps active particles as a linked list.
-      let p = emitter._activeParticlesFirst;
-      while(p){
-        const age = Math.max(0, Number(p.age) || 0);
-
-        // Particle objects are pooled in pixi-particles v4.
-        // If age jumped backwards, this object has just been spawned again:
-        // assign a fresh random phase for the new particle.
-        if(
-          p.__sequenceOffset === undefined ||
-          p.__sequenceLastAge === undefined ||
-          age < p.__sequenceLastAge
-        ){
-          p.__sequenceOffset = seq.randomStart
-            ? Math.floor(Math.random() * frameCount)
-            : 0;
+      // @pixi/particle-emitter 5.0.8 has an edge case with a completely flat
+      // alpha curve at exactly 0 -> 0. Keep the authoring/export config exact,
+      // but use an imperceptible epsilon only in the editor preview runtime so
+      // the emitter can always recover when alpha is raised again.
+      const runtimeAlpha = findBehavior(runtime, 'alpha');
+      if(runtimeAlpha && runtimeAlpha.config && runtimeAlpha.config.alpha && Array.isArray(runtimeAlpha.config.alpha.list)){
+        const alphaList = runtimeAlpha.config.alpha.list;
+        const allZero = alphaList.length > 0 && alphaList.every(node => Number(node.value) === 0);
+        if(allZero){
+          const PREVIEW_ALPHA_EPSILON = 1e-7;
+          alphaList.forEach(node => { node.value = PREVIEW_ALPHA_EPSILON; });
         }
-        p.__sequenceLastAge = age;
+      }
 
-        let frame = Math.floor(age * fps) + p.__sequenceOffset;
-
-        if(seq.loop){
-          frame = frame % frameCount;
-        } else {
-          frame = Math.min(frame, frameCount - 1);
+      (runtime.behaviors || []).forEach(b=>{
+        if(b.type === 'textureSingle'){
+          const name = b.config.texture;
+          if(typeof name === 'string') b.config.texture = getAssetTexture(i, name);
+        } else if(b.type === 'textureRandom' || b.type === 'textureOrdered'){
+          b.config.textures = (b.config.textures || []).map(name=>
+            typeof name === 'string' ? getAssetTexture(i, name) : name
+          );
+        } else if(b.type === 'animatedSingle'){
+          const textures = (((b.config||{}).anim||{}).textures || []);
+          b.config.anim.textures = textures.map((name, idx)=>
+            typeof name === 'string' ? getSequenceTexture(i, name, idx) : name
+          );
+        } else if(b.type === 'animatedRandomized'){
+          b.config.textures = (b.config.textures || []).map((name, idx)=>
+            typeof name === 'string' ? getSequenceTexture(i, name, idx) : name
+          );
         }
+      });
+      return runtime;
+    }
 
-        if(p.texture !== seq.frames[frame]){
-          p.texture = seq.frames[frame];
-        }
-
-        p = p.next;
+    function syncStaticArtBehavior(i){
+      const c = configs[i];
+      if(!c) return;
+      removeBehaviors(c, ART_BEHAVIORS);
+      const assetNames = (textureAssets[i] || []).map(a=>a.name);
+      if(assetNames.length <= 1){
+        upsertBehavior(c, 'textureSingle', { texture: assetNames[0] || 'particle.png' });
+      } else {
+        upsertBehavior(c, 'textureRandom', { textures: assetNames });
       }
     }
 
-    // Ticker
+    function syncSequenceArtBehavior(i){
+      const c = configs[i];
+      const seq = getSequenceState(i);
+      if(!c) return;
+      removeBehaviors(c, ART_BEHAVIORS);
+      if(seq.enabled && seq.frameNames.length){
+        // Stay 100% native when no per-particle randomization is requested.
+        if(!seq.randomStart && Math.abs(seq.fpsMin - seq.fpsMax) < 1e-9){
+          upsertBehavior(c, 'animatedSingle', {
+            anim: {
+              textures: seq.frameNames.slice(),
+              framerate: seq.fpsMin,
+              loop: seq.loop
+            }
+          });
+        } else {
+          upsertBehavior(c, 'animatedRandomized', {
+            textures: seq.frameNames.slice(),
+            fpsMin: seq.fpsMin,
+            fpsMax: seq.fpsMax,
+            randomStart: seq.randomStart,
+            loop: seq.loop
+          });
+        }
+      } else {
+        syncStaticArtBehavior(i);
+      }
+    }
+
+    function hydrateArtStateFromConfig(i){
+      const c = configs[i];
+      if(!c) return;
+      const seq = getSequenceState(i);
+      const randomAnim = findBehavior(c,'animatedRandomized');
+      const singleAnim = findBehavior(c,'animatedSingle');
+
+      if(randomAnim){
+        const nextNames = (randomAnim.config.textures || []).map(String);
+        const sameLoadedSequence = seq.frames.length === nextNames.length &&
+          seq.frameNames.every((name, idx)=>name===nextNames[idx]);
+        // Preserve already uploaded Blob-backed frames when only JSON parameters
+        // changed. Recreate textures only when the actual frame names changed.
+        if(!sameLoadedSequence){
+          destroySequenceState(seq);
+          seq.frameNames = nextNames;
+          seq.frames = seq.frameNames.map(n=>PIXI.Texture.from(n));
+        }
+        seq.enabled = true;
+        seq.fpsMin = Math.max(1, Number(randomAnim.config.fpsMin) || 24);
+        seq.fpsMax = Math.max(seq.fpsMin, Number(randomAnim.config.fpsMax) || seq.fpsMin);
+        seq.randomStart = randomAnim.config.randomStart !== false;
+        seq.loop = randomAnim.config.loop !== false;
+        return;
+      }
+
+      if(singleAnim){
+        const anim = singleAnim.config.anim || {};
+        const nextNames = (anim.textures || []).filter(x=>typeof x==='string').map(String);
+        const sameLoadedSequence = seq.frames.length === nextNames.length &&
+          seq.frameNames.every((name, idx)=>name===nextNames[idx]);
+        if(!sameLoadedSequence){
+          destroySequenceState(seq);
+          seq.frameNames = nextNames;
+          seq.frames = seq.frameNames.map(n=>PIXI.Texture.from(n));
+        }
+        seq.enabled = true;
+        seq.fpsMin = seq.fpsMax = Math.max(1, Number(anim.framerate) || 24);
+        seq.randomStart = false;
+        seq.loop = anim.loop === true;
+        // Convert built-in animatedSingle into our editor's richer behavior.
+        syncSequenceArtBehavior(i);
+        return;
+      }
+
+      seq.enabled = false;
+      const tr = findBehavior(c,'textureRandom');
+      const ts = findBehavior(c,'textureSingle');
+      let staticNames = [];
+      if(tr) staticNames = (tr.config.textures || []).filter(x=>typeof x==='string').map(String);
+      else if(ts && typeof ts.config.texture==='string') staticNames=[ts.config.texture];
+      if(staticNames.length){
+        const current = textureAssets[i] || [];
+        const sameLoadedTextures = current.length === staticNames.length &&
+          current.every((asset, idx)=>asset.name===staticNames[idx]);
+        if(!sameLoadedTextures){
+          current.forEach(destroyTextureAsset);
+          textureAssets[i] = staticNames.map(n=>makeTextureAsset(n, PIXI.Texture.from(n)));
+        }
+      }
+    }
+
+    // Create emitter using @pixi/particle-emitter v5.0.8 EmitterConfigV3.
+    // Build the replacement first and destroy the old instance only after the
+    // new config was accepted. This keeps the editor alive while sliders are
+    // producing intermediate values and makes live editing much more robust.
+    function createEmitter(i){
+      if(i < 0 || !configs[i]) return false;
+
+      const previous = emitters[i] || null;
+      let replacement = null;
+      try {
+        replacement = new PIXI.particles.Emitter(particleContainer, makeRuntimeConfig(i));
+        replacement.updateSpawnPos(emitterContainer.x, emitterContainer.y);
+        replacement.emit = true;
+
+        emitters[i] = replacement;
+        if(previous){
+          previous.cleanup();
+          previous.destroy();
+        }
+        return true;
+      } catch(err){
+        // Never throw away a working preview because one live-edit value was
+        // temporarily invalid. The next valid slider/JSON update can recover.
+        if(replacement){
+          try { replacement.cleanup(); replacement.destroy(); } catch {}
+        }
+        emitters[i] = previous;
+        console.error('Emitter config error (previous preview preserved):', err);
+        return false;
+      }
+    }
+
+    // --- Ticker ---
     app.ticker.add(()=>{
       const now = Date.now();
-      emitters.forEach((em, i)=>{
-        if(em){
+      const dt = Math.max(0, Math.min(0.25, (now-elapsed)*0.001));
+      emitters.forEach((em, index)=>{
+        if(!em) return;
+        try {
           em.updateSpawnPos(emitterContainer.x, emitterContainer.y);
-          em.update((now-elapsed)*0.001);
-          updateEmitterSequence(em, i);
+          em.update(dt);
+        } catch(err){
+          // A malformed/intermediate runtime state must never break the Pixi
+          // ticker or make the editor controls stop responding. Disable only
+          // the failing preview; the next valid slider/JSON edit recreates it.
+          console.error(`Emitter ${index + 1} update error (preview paused until next edit):`, err);
+          try { em.emit = false; } catch {}
         }
       });
       elapsed = now;
     });
 
-    // --- Живая обработка JSON-редактора ---
-    document.getElementById('configArea').addEventListener('input', ()=>{
-      try {
-        const txt = document.getElementById('configArea').value;
-        const parsed = JSON.parse(txt);
-        configs[selectedIndex] = parsed;
-        createEmitter(selectedIndex);
-        populateForm();
-      } catch {}
-    });
+    function listEnds(listObj, fallbackStart, fallbackEnd){
+      const list = listObj && Array.isArray(listObj.list) ? listObj.list : [];
+      const rawStart = list.length ? list[0].value : fallbackStart;
+      const rawEnd = list.length ? list[list.length-1].value : fallbackEnd;
+      return {
+        // Explicitly preserve 0; only null/undefined/non-finite numeric values
+        // should fall back. Color strings pass through unchanged.
+        start: rawStart === null || rawStart === undefined ? fallbackStart : rawStart,
+        end: rawEnd === null || rawEnd === undefined ? fallbackEnd : rawEnd
+      };
+    }
 
-    // --- SAVE JSON BUTTON FIX ---
-    document.getElementById('saveJsonBtn').addEventListener('click', () => {
-      if (!configs[selectedIndex]) return;
-      const cfg = configs[selectedIndex];
-      const filename = (names[selectedIndex] || `emitter_${selectedIndex+1}`) + '.json';
-      const blob = new Blob([JSON.stringify(cfg, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
+    function readEditorValues(c){
+      const alphaB=findBehavior(c,'alpha');
+      const scaleB=findBehavior(c,'scale');
+      const colorB=findBehavior(c,'color');
+      const speedB=findBehavior(c,'moveSpeed');
+      const accelB=findBehavior(c,'moveAcceleration');
+      const rotB=findBehavior(c,'rotation');
+      const rotStatic=findBehavior(c,'rotationStatic');
+      const spawnB=findBehavior(c,'spawnShape');
+      const spawnPointB=findBehavior(c,'spawnPoint');
+      const spawnBurstB=findBehavior(c,'spawnBurst');
+      const blendB=findBehavior(c,'blendMode');
 
-    // Texture list UI
-    function updateTextureList(){
-      const list = document.getElementById('textureList');
-      list.innerHTML = '';
-      texturesList[selectedIndex].forEach((tx, idx)=>{
-        const item = document.createElement('div');
-        item.className = 'textureItem';
-        const img = document.createElement('img');
-        img.src = tx.baseTexture.resource.url||'';
-        const btn = document.createElement('button');
-        btn.textContent = 'Удалить';
-        btn.onclick = ()=>{
-          texturesList[selectedIndex].splice(idx,1);
-          createEmitter(selectedIndex);
-          updateTextureList();
-        };
-        item.append(img, btn);
-        list.appendChild(item);
+      const a=listEnds(alphaB && alphaB.config.alpha,1,0);
+      const s=listEnds(scaleB && scaleB.config.scale,1,1);
+      const col=listEnds(colorB && colorB.config.color,'#ffffff','#ffffff');
+      let sp={start:200,end:50}, minSpeedMult=1, acc={x:0,y:0};
+      if(speedB){
+        sp=listEnds(speedB.config.speed,200,50);
+        minSpeedMult = speedB.config.minMult ?? 1;
+      } else if(accelB){
+        sp.start = Number(accelB.config.maxStart) || 0;
+        sp.end = sp.start;
+        const maxStart = Number(accelB.config.maxStart) || 0;
+        const minStart = Number(accelB.config.minStart) || 0;
+        minSpeedMult = maxStart ? minStart/maxStart : 1;
+        acc = accelB.config.accel || {x:0,y:0};
+      }
+
+      let rotMin=-120, rotMax=120;
+      if(rotB){ rotMin=rotB.config.minStart ?? rotMin; rotMax=rotB.config.maxStart ?? rotMax; }
+      else if(rotStatic){ rotMin=rotStatic.config.min ?? rotMin; rotMax=rotStatic.config.max ?? rotMax; }
+
+      let spawnType='point';
+      let spawnCircleR=10, spawnRingOuter=40, spawnRingInner=20;
+      let spawnRectW=100, spawnRectH=100, spawnRectX=-50, spawnRectY=-50;
+      let spawnBurstStart=0, spawnBurstSpacing=45, spawnBurstDistance=0;
+
+      if(spawnBurstB){
+        spawnType='burst';
+        spawnBurstStart=Number(spawnBurstB.config?.start ?? 0);
+        spawnBurstSpacing=Number(spawnBurstB.config?.spacing ?? 45);
+        spawnBurstDistance=Number(spawnBurstB.config?.distance ?? 0);
+      } else if(spawnB && spawnB.config){
+        if(spawnB.config.type==='torus'){
+          const data=spawnB.config.data || {};
+          const outer=Number(data.radius ?? 10);
+          const inner=Number(data.innerRadius ?? 0);
+          if(inner > 0){
+            spawnType='ring';
+            spawnRingOuter=outer;
+            spawnRingInner=Math.min(inner,outer);
+          } else {
+            spawnType='circle';
+            spawnCircleR=outer;
+          }
+        } else if(spawnB.config.type==='rect'){
+          spawnType='rect';
+          const data=spawnB.config.data || {};
+          spawnRectW=Number(data.w ?? data.width ?? 100);
+          spawnRectH=Number(data.h ?? data.height ?? 100);
+          spawnRectX=Number(data.x ?? 0) + spawnRectW/2;
+          spawnRectY=Number(data.y ?? 0) + spawnRectH/2;
+        }
+      } else if(spawnPointB){
+        spawnType='point';
+      }
+
+      return {
+        alphaStart:Number(a.start), alphaEnd:Number(a.end),
+        scaleStart:Number(s.start), scaleEnd:Number(s.end), minScaleMult:Number(scaleB?.config?.minMult ?? 1),
+        colorStart:String(col.start || '#ffffff'), colorEnd:String(col.end || '#ffffff'),
+        speedStart:Number(sp.start), speedEnd:Number(sp.end), minSpeedMult:Number(minSpeedMult),
+        accX:Number(acc.x)||0, accY:Number(acc.y)||0,
+        startRotMin:Number(rotMin), startRotMax:Number(rotMax),
+        lifeMin:Number(c.lifetime?.min ?? 0.3), lifeMax:Number(c.lifetime?.max ?? 0.8),
+        frequency:Number(c.frequency ?? 0.02), maxParticles:Number(c.maxParticles ?? 200),
+        spawnType, spawnCircleR, spawnRingOuter, spawnRingInner,
+        spawnRectW, spawnRectH, spawnRectX, spawnRectY,
+        spawnBurstStart, spawnBurstSpacing, spawnBurstDistance,
+        spawnBurstParticles:Number(c.particlesPerWave ?? 1),
+        additiveBlend:String(blendB?.config?.blendMode || 'normal').toLowerCase()==='add'
+      };
+    }
+
+    function finiteClamped(value, fallback, min, max){
+      const n = Number(value);
+      if(!Number.isFinite(n)) return fallback;
+      return Math.max(min, Math.min(max, n));
+    }
+
+    function writeKnownBehaviorsFromValues(c, v){
+      if(!Array.isArray(c.behaviors)) c.behaviors=[];
+
+      // Zero alpha is a valid v5 value. Keep it as an actual numeric 0 instead
+      // of ever treating it as a missing/falsy value, and clamp only to Pixi's
+      // valid opacity range.
+      v.alphaStart = finiteClamped(v.alphaStart, 1, 0, 1);
+      v.alphaEnd = finiteClamped(v.alphaEnd, 0, 0, 1);
+      upsertBehavior(c,'alpha',{alpha:{list:[{value:v.alphaStart,time:0},{value:v.alphaEnd,time:1}],isStepped:false}});
+      upsertBehavior(c,'scale',{scale:{list:[{value:v.scaleStart,time:0},{value:v.scaleEnd,time:1}],isStepped:false},minMult:v.minScaleMult});
+      upsertBehavior(c,'color',{color:{list:[{value:v.colorStart,time:0},{value:v.colorEnd,time:1}],isStepped:false}});
+      upsertBehavior(c,'blendMode',{blendMode:v.additiveBlend ? 'add' : 'normal'});
+
+      const oldRot=findBehavior(c,'rotation');
+      const minRotSpeed=oldRot?.config?.minSpeed ?? 0;
+      const maxRotSpeed=oldRot?.config?.maxSpeed ?? 0;
+      const rotAccel=oldRot?.config?.accel ?? 0;
+      removeBehaviors(c,['rotation','rotationStatic','noRotation']);
+      upsertBehavior(c,'rotation',{minStart:v.startRotMin,maxStart:v.startRotMax,minSpeed:minRotSpeed,maxSpeed:maxRotSpeed,accel:rotAccel});
+
+      // v5 separates interpolated speed and accelerated movement into different
+      // behaviors. This mirrors upgradeConfig(): non-zero acceleration uses the
+      // native moveAcceleration behavior; otherwise native moveSpeed is used.
+      removeBehaviors(c,['moveSpeed','moveAcceleration']);
+      if(Math.abs(v.accX) > 1e-9 || Math.abs(v.accY) > 1e-9){
+        const maxStart=Math.max(0,v.speedStart);
+        upsertBehavior(c,'moveAcceleration',{
+          accel:{x:v.accX,y:v.accY},
+          minStart:maxStart * Math.max(0,Math.min(1,v.minSpeedMult)),
+          maxStart:maxStart,
+          maxSpeed:0,
+          rotate:false
+        });
+      } else {
+        upsertBehavior(c,'moveSpeed',{
+          speed:{list:[{value:v.speedStart,time:0},{value:v.speedEnd,time:1}],isStepped:false},
+          minMult:v.minSpeedMult
+        });
+      }
+
+      // Native v5 spawn behaviors. Only one spawn behavior is active at a time.
+      removeBehaviors(c,['spawnShape','spawnPoint','spawnBurst']);
+      switch(v.spawnType){
+        case 'circle':
+          upsertBehavior(c,'spawnShape',{type:'torus',data:{x:0,y:0,radius:Math.max(0,v.spawnCircleR),innerRadius:0,affectRotation:false}});
+          c.particlesPerWave=1;
+          break;
+        case 'ring': {
+          const outer=Math.max(0,v.spawnRingOuter);
+          const inner=Math.max(0,Math.min(v.spawnRingInner,outer));
+          upsertBehavior(c,'spawnShape',{type:'torus',data:{x:0,y:0,radius:outer,innerRadius:inner,affectRotation:false}});
+          c.particlesPerWave=1;
+          break;
+        }
+        case 'rect':
+          {
+            const w=Math.max(0,v.spawnRectW), h=Math.max(0,v.spawnRectH);
+            upsertBehavior(c,'spawnShape',{type:'rect',data:{x:v.spawnRectX-w/2,y:v.spawnRectY-h/2,w,h}});
+          }
+          c.particlesPerWave=1;
+          break;
+        case 'burst':
+          upsertBehavior(c,'spawnBurst',{start:v.spawnBurstStart,spacing:Math.max(0,v.spawnBurstSpacing),distance:Math.max(0,v.spawnBurstDistance)});
+          c.particlesPerWave=Math.max(1,Math.round(v.spawnBurstParticles));
+          break;
+        case 'point':
+        default:
+          upsertBehavior(c,'spawnPoint',{});
+          c.particlesPerWave=1;
+          break;
+      }
+
+      c.lifetime={min:v.lifeMin,max:v.lifeMax};
+      c.frequency=v.frequency;
+      c.maxParticles=Math.max(1,Math.round(v.maxParticles));
+      if(c.spawnChance===undefined) c.spawnChance=1;
+      if(c.particlesPerWave===undefined) c.particlesPerWave=1;
+      if(c.emitterLifetime===undefined) c.emitterLifetime=-1;
+      if(!c.pos) c.pos={x:0,y:0};
+    }
+
+    function readValuesFromForm(){
+      const n=id=>parseFloat(document.getElementById(id).value);
+      return {
+        alphaStart:n('alphaStart'), alphaEnd:n('alphaEnd'),
+        scaleStart:n('scaleStart'), scaleEnd:n('scaleEnd'), minScaleMult:n('minScaleMult'),
+        colorStart:document.getElementById('colorStart').value,
+        colorEnd:document.getElementById('colorEnd').value,
+        speedStart:n('speedStart'), speedEnd:n('speedEnd'), minSpeedMult:n('minSpeedMult'),
+        accX:n('accX')||0, accY:n('accY')||0,
+        startRotMin:n('startRotMin'), startRotMax:n('startRotMax'),
+        lifeMin:n('lifeMin'), lifeMax:n('lifeMax'), frequency:n('frequency'),
+        maxParticles:parseInt(document.getElementById('maxParticles').value,10)||1,
+        spawnType:document.getElementById('spawnType').value,
+        spawnCircleR:n('spawnCircleR')||0,
+        spawnRingOuter:n('spawnRingOuter')||0, spawnRingInner:n('spawnRingInner')||0,
+        spawnRectW:n('spawnRectW')||0, spawnRectH:n('spawnRectH')||0,
+        spawnRectX:n('spawnRectX')||0, spawnRectY:n('spawnRectY')||0,
+        spawnBurstStart:n('spawnBurstStart')||0, spawnBurstSpacing:n('spawnBurstSpacing')||0,
+        spawnBurstDistance:n('spawnBurstDistance')||0,
+        spawnBurstParticles:parseInt(document.getElementById('spawnBurstParticles').value,10)||1,
+        additiveBlend:document.getElementById('additiveBlend').checked
+      };
+    }
+
+    function updateConfigText(){
+      if(selectedIndex>=0 && configs[selectedIndex])
+        document.getElementById('configArea').value=JSON.stringify(configs[selectedIndex],null,2);
+        setJsonStatus('JSON valid','ok');
+    }
+
+    function setRangeValue(id, value){
+      const el=document.getElementById(id);
+      el.value=value;
+      const val=document.getElementById(id+'Val');
+      if(val) val.innerText=value;
+    }
+
+    function updateSpawnSettingsVisibility(type){
+      ['point','circle','ring','rect','burst'].forEach(t=>{
+        const id='spawn'+t.charAt(0).toUpperCase()+t.slice(1)+'Settings';
+        const el=document.getElementById(id);
+        if(el) el.classList.toggle('active', t===type);
       });
     }
 
-    // Load initial emitter.json
-    fetch('emitter.json')
-      .then(r=>r.json())
-      .then(cfg=>{
-        configs.push(cfg);
-        texturesList.push(defaultTextures.slice());
-        names.push('Emitter 1');
-        sequences.push(makeSequenceState());
-        createEmitter(0);
-        document.getElementById('configArea').value = JSON.stringify(cfg,null,2);
+    function drawSpawnGizmo(values){
+      if(!spawnGizmo || !values) return;
+      const g=spawnGizmo;
+      g.clear();
+      if(selectedIndex < 0 || spawnGizmoVisible[selectedIndex] === false) return;
+      const lineColor=0x55aaff, fillColor=0x55aaff;
+      g.lineStyle(1, lineColor, .72);
+      g.beginFill(fillColor,.045);
+
+      if(values.spawnType==='circle'){
+        g.drawCircle(0,0,Math.max(0,values.spawnCircleR));
+      } else if(values.spawnType==='ring'){
+        const outer=Math.max(0,values.spawnRingOuter);
+        const inner=Math.max(0,Math.min(values.spawnRingInner,outer));
+        g.drawCircle(0,0,outer);
+        g.endFill();
+        g.lineStyle(1,lineColor,.45);
+        if(inner>0) g.drawCircle(0,0,inner);
+      } else if(values.spawnType==='rect'){
+        const w=Math.max(0,values.spawnRectW), h=Math.max(0,values.spawnRectH);
+        g.drawRect(values.spawnRectX-w/2,values.spawnRectY-h/2,w,h);
+      } else if(values.spawnType==='burst'){
+        const dist=Math.max(0,values.spawnBurstDistance);
+        const count=Math.min(36,Math.max(1,Math.round(values.spawnBurstParticles)));
+        const start=values.spawnBurstStart*Math.PI/180;
+        const spacing=values.spawnBurstSpacing*Math.PI/180;
+        g.endFill();
+        if(dist>0){ g.lineStyle(1,lineColor,.35); g.drawCircle(0,0,dist); }
+        g.lineStyle(1,lineColor,.72);
+        const ray=Math.max(26,dist+28);
+        for(let i=0;i<count;i++){
+          const a=start+spacing*i;
+          const x0=Math.cos(a)*dist, y0=Math.sin(a)*dist;
+          const x1=Math.cos(a)*ray, y1=Math.sin(a)*ray;
+          g.moveTo(x0,y0); g.lineTo(x1,y1);
+        }
+      } else {
+        g.endFill();
+        g.moveTo(-8,0);g.lineTo(8,0);g.moveTo(0,-8);g.lineTo(0,8);
+        g.drawCircle(0,0,3);
+      }
+      try { g.endFill(); } catch {}
+    }
+
+    function populateForm(){
+      if(selectedIndex < 0 || !configs[selectedIndex]) return;
+      const v=readEditorValues(configs[selectedIndex]);
+      updateConfigText();
+      setRangeValue('alphaStart',v.alphaStart); setRangeValue('alphaEnd',v.alphaEnd);
+      setRangeValue('scaleStart',v.scaleStart); setRangeValue('scaleEnd',v.scaleEnd); setRangeValue('minScaleMult',v.minScaleMult);
+      document.getElementById('colorStart').value=v.colorStart;
+      document.getElementById('colorEnd').value=v.colorEnd;
+      setRangeValue('speedStart',v.speedStart); setRangeValue('speedEnd',v.speedEnd); setRangeValue('minSpeedMult',v.minSpeedMult);
+      document.getElementById('accX').value=v.accX; document.getElementById('accY').value=v.accY;
+      document.getElementById('startRotMin').value=v.startRotMin; document.getElementById('startRotMax').value=v.startRotMax;
+      setRangeValue('lifeMin',v.lifeMin); setRangeValue('lifeMax',v.lifeMax);
+      setRangeValue('frequency',v.frequency);
+      document.getElementById('maxParticles').value=v.maxParticles;
+      document.getElementById('spawnType').value=v.spawnType;
+      document.getElementById('showSpawnGizmo').checked = spawnGizmoVisible[selectedIndex] !== false;
+      setRangeValue('spawnCircleR',v.spawnCircleR);
+      setRangeValue('spawnRingOuter',v.spawnRingOuter); setRangeValue('spawnRingInner',v.spawnRingInner);
+      document.getElementById('spawnRectW').value=v.spawnRectW; document.getElementById('spawnRectH').value=v.spawnRectH;
+      document.getElementById('spawnRectX').value=v.spawnRectX; document.getElementById('spawnRectY').value=v.spawnRectY;
+      document.getElementById('spawnBurstStart').value=v.spawnBurstStart; document.getElementById('spawnBurstSpacing').value=v.spawnBurstSpacing;
+      setRangeValue('spawnBurstDistance',v.spawnBurstDistance);
+      document.getElementById('spawnBurstParticles').value=v.spawnBurstParticles;
+      updateSpawnSettingsVisibility(v.spawnType);
+      drawSpawnGizmo(v);
+      document.getElementById('additiveBlend').checked=!!v.additiveBlend;
+    }
+
+    function setJsonStatus(message, type='ok'){
+      const el=document.getElementById('jsonStatus');
+      if(!el) return;
+      el.textContent=message;
+      el.className='status-line '+(type==='error'?'status-error':type==='warn'?'status-warn':'status-ok');
+    }
+
+    // JSON text -> config -> sliders, live.
+    document.getElementById('configArea').addEventListener('input', ()=>{
+      if(selectedIndex<0) return;
+      try {
+        const parsed=JSON.parse(document.getElementById('configArea').value);
+        const artNames=(textureAssets[selectedIndex]||[]).map(a=>a.name);
+        configs[selectedIndex]=normalizeConfigToV5(parsed,artNames);
+        hydrateArtStateFromConfig(selectedIndex);
+        createEmitter(selectedIndex);
         populateForm();
-        refreshEmitterList();
         updateTextureList();
         updateSequenceUI();
+        setJsonStatus('JSON valid','ok');
+      } catch(err) {
+        setJsonStatus('JSON error: '+err.message,'error');
+      }
+    });
+
+
+    function sanitizeFileBase(name){
+      return String(name||'emitter').trim().replace(/[^a-zA-Z0-9._-]+/g,'_').replace(/^_+|_+$/g,'') || 'emitter';
+    }
+
+    function getUsedAssetNames(i){
+      const c=configs[i];
+      const out=[];
+      const add=n=>{ if(typeof n==='string' && n && !out.includes(n)) out.push(n); };
+      (c?.behaviors||[]).forEach(b=>{
+        if(b.type==='textureSingle') add(b.config?.texture);
+        else if(b.type==='textureRandom' || b.type==='textureOrdered') (b.config?.textures||[]).forEach(add);
+        else if(b.type==='animatedSingle') (((b.config||{}).anim||{}).textures||[]).forEach(add);
+        else if(b.type==='animatedRandomized') (b.config?.textures||[]).forEach(add);
       });
+      return out;
+    }
+
+    async function assetBlobFromEditor(i,name){
+      const asset=(textureAssets[i]||[]).find(a=>a.name===name);
+      if(asset?.blob) return asset.blob;
+      if(asset?.objectUrl){
+        try { return await (await fetch(asset.objectUrl)).blob(); } catch {}
+      }
+      const seq=getSequenceState(i);
+      const idx=seq.frameNames.indexOf(name);
+      if(idx>=0){
+        if(seq.blobs?.[idx]) return seq.blobs[idx];
+        if(seq.urls?.[idx]){ try { return await (await fetch(seq.urls[idx])).blob(); } catch {} }
+      }
+      return null;
+    }
+
+    function packageManifest(i, usedAssets){
+      const c=configs[i];
+      const seq=getSequenceState(i);
+      const custom=[];
+      if(findBehavior(c,'animatedRandomized')) custom.push('animatedRandomized');
+      return {
+        format:'pixi-particle-emitter-dev-package',
+        formatVersion:1,
+        runtime:{ pixiJS:'6.5.6', particleEmitter:'5.0.8' },
+        emitter:{ name:names[i]||`Emitter ${i+1}`, config:'emitter.json' },
+        assets:{ directory:'assets', files:usedAssets.slice() },
+        sequence: seq.enabled ? {
+          frames:seq.frameNames.slice(), fpsMin:seq.fpsMin, fpsMax:seq.fpsMax,
+          randomStart:seq.randomStart, loop:seq.loop
+        } : null,
+        customBehaviors:custom,
+        integrationNote: custom.length
+          ? 'Register the animatedRandomized behavior once in the game before creating this emitter.'
+          : 'Uses only built-in @pixi/particle-emitter 5.0.8 behaviors.'
+      };
+    }
+
+    function randomizedBehaviorDevSource(){
+      return `import { Texture } from 'pixi.js';
+import { Emitter } from '@pixi/particle-emitter';
+
+// Register once during game startup. Required only by configs using
+// behavior type: "animatedRandomized".
+class RandomizedAnimatedTextureBehavior {
+  static type = 'animatedRandomized';
+  static editorConfig = null;
+
+  constructor(config) {
+    this.order = 2;
+    this.textures = (config.textures || []).map(t =>
+      typeof t === 'string' ? Texture.from(t) : t
+    );
+    this.fpsMin = Math.max(1, Number(config.fpsMin) || 24);
+    this.fpsMax = Math.max(this.fpsMin, Number(config.fpsMax) || this.fpsMin);
+    this.randomStart = config.randomStart !== false;
+    this.loop = config.loop !== false;
+  }
+
+  initParticles() {}
+
+  updateParticle(particle) {
+    if (!this.textures.length) return;
+    const age = Math.max(0, Number(particle.age) || 0);
+    if (particle.__raeOwner !== this || particle.__raeLastAge === undefined || age < particle.__raeLastAge) {
+      particle.__raeOwner = this;
+      particle.__raeOffset = this.randomStart ? Math.floor(Math.random() * this.textures.length) : 0;
+      particle.__raeFps = this.fpsMin === this.fpsMax
+        ? this.fpsMin
+        : this.fpsMin + Math.random() * (this.fpsMax - this.fpsMin);
+    }
+    particle.__raeLastAge = age;
+    let frame = Math.floor(age * particle.__raeFps) + particle.__raeOffset;
+    frame = this.loop ? frame % this.textures.length : Math.min(frame, this.textures.length - 1);
+    particle.texture = this.textures[frame];
+  }
+
+  recycleParticle(particle) {
+    particle.__raeOwner = null;
+    particle.__raeLastAge = undefined;
+    particle.__raeOffset = undefined;
+    particle.__raeFps = undefined;
+  }
+}
+
+Emitter.registerBehavior(RandomizedAnimatedTextureBehavior);
+export { RandomizedAnimatedTextureBehavior };\n`;
+    }
+
+    document.getElementById('exportPackageBtn').addEventListener('click',async()=>{
+      if(selectedIndex<0 || !configs[selectedIndex]) return;
+      if(typeof JSZip==='undefined'){ alert('JSZip failed to load. Check your internet connection and restart the tool.'); return; }
+      const used=getUsedAssetNames(selectedIndex);
+      const resolved=[];
+      const missing=[];
+      for(const name of used){
+        const blob=await assetBlobFromEditor(selectedIndex,name);
+        if(blob) resolved.push([name,blob]); else missing.push(name);
+      }
+      if(missing.length){
+        alert('DEV package was not created. The following source files are not loaded in the editor:\n\n'+missing.join('\n')+'\n\nLoad these textures/frames so the package can be self-contained.');
+        return;
+      }
+      const zip=new JSZip();
+      zip.file('emitter.json',JSON.stringify(configs[selectedIndex],null,2));
+      zip.file('manifest.json',JSON.stringify(packageManifest(selectedIndex,used),null,2));
+      const folder=zip.folder('assets');
+      resolved.forEach(([name,blob])=>folder.file(name,blob));
+      const readme=[
+        `Emitter: ${names[selectedIndex]||`Emitter ${selectedIndex+1}`}`,
+        'Runtime: PixiJS 6.5.6 + @pixi/particle-emitter 5.0.8',
+        '',
+        'emitter.json - production EmitterConfigV3',
+        'assets/      - source textures used by this emitter',
+        'manifest.json - package metadata / dependencies',
+        '',
+        'Asset filenames are kept unchanged so the same asset can be deduplicated/reused by the game build pipeline.'
+      ];
+      if(findBehavior(configs[selectedIndex],'animatedRandomized')){
+        readme.push('', 'NOTE: this emitter uses custom behavior "animatedRandomized" for per-particle random start frame / FPS. Register that behavior once in the game runtime.');
+        readme.push('A ready reference implementation is included in custom-behaviors/animatedRandomized.behavior.js.');
+        zip.folder('custom-behaviors').file('animatedRandomized.behavior.js',randomizedBehaviorDevSource());
+      }
+      zip.file('README.txt',readme.join('\n'));
+      const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=sanitizeFileBase(names[selectedIndex])+'.zip'; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importPackageBtn').addEventListener('click',()=>document.getElementById('packageFileInput').click());
+    document.getElementById('packageFileInput').addEventListener('change',async function(){
+      const file=this.files?.[0]; this.value=''; if(!file) return;
+      try{
+        const zip=await JSZip.loadAsync(file);
+        const emitterEntry=zip.file('emitter.json');
+        if(!emitterEntry) throw new Error('The package does not contain emitter.json');
+        const raw=JSON.parse(await emitterEntry.async('string'));
+        let manifest=null;
+        const manifestEntry=zip.file('manifest.json');
+        if(manifestEntry){ try{ manifest=JSON.parse(await manifestEntry.async('string')); }catch{} }
+        const assetEntries=Object.values(zip.files).filter(e=>!e.dir && e.name.startsWith('assets/'));
+        const assetsByName=new Map();
+        for(const entry of assetEntries){
+          const name=entry.name.split('/').pop();
+          const blob=await entry.async('blob');
+          assetsByName.set(name,blob);
+        }
+        const usedNames=[];
+        const collect=n=>{ if(typeof n==='string' && n && !usedNames.includes(n)) usedNames.push(n); };
+        const temp=normalizeConfigToV5(raw,[]);
+        (temp.behaviors||[]).forEach(b=>{
+          if(b.type==='textureSingle') collect(b.config?.texture);
+          else if(b.type==='textureRandom'||b.type==='textureOrdered') (b.config?.textures||[]).forEach(collect);
+          else if(b.type==='animatedSingle') ((((b.config||{}).anim||{}).textures)||[]).forEach(collect);
+          else if(b.type==='animatedRandomized') (b.config?.textures||[]).forEach(collect);
+        });
+        const staticAssets=[];
+        const seqState=makeSequenceState();
+        const animRandom=findBehavior(temp,'animatedRandomized');
+        const animSingle=findBehavior(temp,'animatedSingle');
+        const seqNames=animRandom ? (animRandom.config?.textures||[]) : animSingle ? (((animSingle.config||{}).anim||{}).textures||[]) : [];
+        const seqSet=new Set(seqNames.map(String));
+        for(const name of usedNames){
+          const blob=assetsByName.get(name);
+          if(!blob) continue;
+          const url=URL.createObjectURL(blob);
+          const tx=PIXI.Texture.from(url);
+          if(seqSet.has(name)){
+            seqState.frameNames.push(name); seqState.frames.push(tx); seqState.urls.push(url); seqState.blobs.push(blob);
+          }else{
+            staticAssets.push(makeTextureAsset(name,tx,url,blob));
+          }
+        }
+        if(animRandom){
+          seqState.enabled=true;
+          seqState.fpsMin=Math.max(1,Number(animRandom.config?.fpsMin)||24);
+          seqState.fpsMax=Math.max(seqState.fpsMin,Number(animRandom.config?.fpsMax)||seqState.fpsMin);
+          seqState.randomStart=animRandom.config?.randomStart!==false;
+          seqState.loop=animRandom.config?.loop!==false;
+        }else if(animSingle){
+          const anim=animSingle.config?.anim||{};
+          seqState.enabled=true;
+          seqState.fpsMin=seqState.fpsMax=Math.max(1,Number(anim.framerate)||24);
+          seqState.randomStart=false; seqState.loop=anim.loop===true;
+        }
+        configs.push(temp);
+        textureAssets.push(staticAssets.length?staticAssets:[]);
+        sequences.push(seqState);
+        spawnGizmoVisible.push(true);
+        names.push(manifest?.emitter?.name || file.name.replace(/\.zip$/i,'') || `Emitter ${configs.length}`);
+        selectedIndex=configs.length-1;
+        createEmitter(selectedIndex);
+        populateForm(); refreshEmitterList(); updateTextureList(); updateSequenceUI();
+        setJsonStatus('DEV package imported','ok');
+      }catch(err){
+        console.error(err); alert('Failed to import DEV package: '+err.message);
+      }
+    });
+
+    // Save production EmitterConfigV3 JSON (asset names only, no browser blobs).
+    document.getElementById('saveJsonBtn').addEventListener('click',()=>{
+      if(!configs[selectedIndex]) return;
+      const filename=(names[selectedIndex]||`emitter_${selectedIndex+1}`)+'.json';
+      const blob=new Blob([JSON.stringify(configs[selectedIndex],null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    function updateTextureList(){
+      const list=document.getElementById('textureList');
+      list.innerHTML='';
+      if(selectedIndex<0) return;
+      (textureAssets[selectedIndex]||[]).forEach((asset,idx)=>{
+        const item=document.createElement('div');
+        item.className='textureItem';
+        const img=document.createElement('img');
+        try { img.src=asset.texture.baseTexture.resource.url||asset.objectUrl||asset.name; } catch { img.src=asset.objectUrl||asset.name; }
+        img.title=asset.name;
+        const name=document.createElement('div');
+        name.textContent=asset.name;
+        name.style.cssText='font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-left:6px;';
+        const btn=document.createElement('button');
+        btn.textContent='Remove';
+        btn.onclick=()=>{
+          destroyTextureAsset(textureAssets[selectedIndex][idx]);
+          textureAssets[selectedIndex].splice(idx,1);
+          if(!getSequenceState(selectedIndex).enabled) syncStaticArtBehavior(selectedIndex);
+          createEmitter(selectedIndex); updateTextureList(); updateConfigText();
+        };
+        item.append(img,name,btn); list.appendChild(item);
+      });
+    }
+
+    // Initial emitter.json: supports both old v4 JSON and production v5 JSON.
+    function initializeFirstEmitter(raw){
+      textureAssets.push(defaultTextureAssets());
+      names.push('Emitter 1');
+      sequences.push(makeSequenceState());
+      spawnGizmoVisible.push(true);
+      configs.push(normalizeConfigToV5(raw,(textureAssets[0]||[]).map(a=>a.name)));
+      // Preserve the exact startup emitter as the canonical clean template.
+      standardEmitterTemplate=cloneJson(configs[0]);
+      hydrateArtStateFromConfig(0);
+      createEmitter(0);
+      populateForm(); refreshEmitterList(); updateTextureList(); updateSequenceUI();
+    }
+
+    fetch('emitter.json')
+      .then(r=>{ if(!r.ok) throw new Error('No emitter.json'); return r.json(); })
+      .then(initializeFirstEmitter)
+      .catch(()=>initializeFirstEmitter(makeDefaultV5Config()));
 
     // JSON import modal
-    const jsonModal = document.getElementById('jsonModal');
-    document.getElementById('openJsonModalBtn').onclick = ()=> jsonModal.style.display='flex';
-    jsonModal.querySelector('.close').onclick = ()=> jsonModal.style.display='none';
-    document.getElementById('jsonFileInput').onchange = function(){
+    const jsonModal=document.getElementById('jsonModal');
+    document.getElementById('openJsonModalBtn').onclick=()=>jsonModal.style.display='flex';
+    jsonModal.querySelector('.close').onclick=()=>jsonModal.style.display='none';
+    document.getElementById('jsonFileInput').onchange=function(){
       const f=this.files[0]; if(!f) return;
       const reader=new FileReader();
       reader.onload=e=>{
-        const cfg=JSON.parse(e.target.result);
-        configs.push(cfg);
-        texturesList.push(defaultTextures.slice());
-        names.push(`Emitter ${configs.length}`);
-        sequences.push(makeSequenceState());
-        createEmitter(configs.length-1);
-        selectedIndex=configs.length-1;
-        populateForm();
-        refreshEmitterList();
-        updateTextureList();
-        updateSequenceUI();
-        jsonModal.style.display='none';
+        try{
+          const raw=JSON.parse(e.target.result);
+          const assets=defaultTextureAssets();
+          textureAssets.push(assets);
+          names.push(f.name.replace(/\.json$/i,'') || `Emitter ${configs.length+1}`);
+          sequences.push(makeSequenceState());
+          spawnGizmoVisible.push(true);
+          configs.push(normalizeConfigToV5(raw,assets.map(a=>a.name)));
+          selectedIndex=configs.length-1;
+          hydrateArtStateFromConfig(selectedIndex);
+          createEmitter(selectedIndex);
+          populateForm(); refreshEmitterList(); updateTextureList(); updateSequenceUI();
+          jsonModal.style.display='none';
+        }catch(err){ alert('Invalid JSON'); }
       };
       reader.readAsText(f);
+      this.value='';
     };
 
     // Texture add modal
-    const texModal = document.getElementById('textureModal');
-    document.getElementById('openTextureModalBtn').onclick = ()=> texModal.style.display='flex';
-    texModal.querySelector('.close').onclick = ()=> texModal.style.display='none';
-    document.getElementById('addTextureConfirmBtn').onclick = ()=>{
+    const texModal=document.getElementById('textureModal');
+    document.getElementById('openTextureModalBtn').onclick=()=>texModal.style.display='flex';
+    texModal.querySelector('.close').onclick=()=>texModal.style.display='none';
+    document.getElementById('addTextureConfirmBtn').onclick=()=>{
       const fi=document.getElementById('textureFileInput');
-      if(fi.files[0]){
-        const url=URL.createObjectURL(fi.files[0]);
-        const tx=PIXI.Texture.from(url);
-        texturesList[selectedIndex].push(tx);
-        createEmitter(selectedIndex);
-        updateTextureList();
+      const file=fi.files[0];
+      if(file && selectedIndex>=0){
+        const url=URL.createObjectURL(file);
+        const existing=(textureAssets[selectedIndex]||[]).findIndex(a=>a.name===file.name);
+        const nextAsset=makeTextureAsset(file.name,PIXI.Texture.from(url),url,file);
+        if(existing>=0){
+          destroyTextureAsset(textureAssets[selectedIndex][existing]);
+          textureAssets[selectedIndex][existing]=nextAsset;
+        }else{
+          textureAssets[selectedIndex].push(nextAsset);
+        }
+        if(!getSequenceState(selectedIndex).enabled) syncStaticArtBehavior(selectedIndex);
+        createEmitter(selectedIndex); updateTextureList(); updateConfigText();
       }
-      texModal.style.display='none';
+      fi.value=''; texModal.style.display='none';
     };
 
     // Sequence controls
     function updateSequenceUI(){
-      if(selectedIndex < 0) return;
-      const seq = getSequenceState(selectedIndex);
-      document.getElementById('sequenceEnabled').checked = seq.enabled;
-      document.getElementById('sequenceFps').value = seq.fps;
-      document.getElementById('sequenceRandomStart').checked = seq.randomStart;
-      document.getElementById('sequenceLoop').checked = seq.loop;
-      document.getElementById('sequenceInfo').textContent = seq.frames.length
-        ? `${seq.frames.length} кадров загружено`
-        : 'Кадры не загружены';
+      if(selectedIndex<0) return;
+      const seq=getSequenceState(selectedIndex);
+      document.getElementById('sequenceEnabled').checked=seq.enabled;
+      document.getElementById('sequenceFpsMin').value=seq.fpsMin;
+      document.getElementById('sequenceFpsMinVal').innerText=Math.round(seq.fpsMin);
+      document.getElementById('sequenceFpsMax').value=seq.fpsMax;
+      document.getElementById('sequenceFpsMaxVal').innerText=Math.round(seq.fpsMax);
+      document.getElementById('sequenceRandomStart').checked=seq.randomStart;
+      document.getElementById('sequenceLoop').checked=seq.loop;
+      document.getElementById('sequenceInfo').textContent=seq.frameNames.length
+        ? `${seq.frameNames.length} frames: ${seq.frameNames[0]} … ${seq.frameNames[seq.frameNames.length-1]}`
+        : 'No frames loaded';
     }
 
-    document.getElementById('sequenceFiles').addEventListener('change', function(){
-      const files = Array.from(this.files || []);
-      if(!files.length || selectedIndex < 0) return;
+    function commitSequenceSettings(){
+      if(selectedIndex<0) return;
+      syncSequenceArtBehavior(selectedIndex);
+      createEmitter(selectedIndex);
+      updateConfigText();
+    }
 
-      // Sort by filename so coin_01, coin_02, ... play in the expected order.
-      files.sort((a,b)=>a.name.localeCompare(b.name, undefined, {numeric:true, sensitivity:'base'}));
-
-      const seq = getSequenceState(selectedIndex);
+    document.getElementById('sequenceFiles').addEventListener('change',function(){
+      const files=Array.from(this.files||[]);
+      if(!files.length || selectedIndex<0) return;
+      files.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:'base'}));
+      const seq=getSequenceState(selectedIndex);
       destroySequenceState(seq);
-      seq.frames = [];
-      seq.urls = [];
-
       files.forEach(file=>{
-        const url = URL.createObjectURL(file);
+        const url=URL.createObjectURL(file);
         seq.urls.push(url);
+        seq.blobs.push(file);
+        seq.frameNames.push(file.name);
         seq.frames.push(PIXI.Texture.from(url));
       });
-
-      seq.enabled = true;
-      createEmitter(selectedIndex);
-      updateSequenceUI();
-      this.value = '';
+      seq.enabled=true;
+      commitSequenceSettings(); updateSequenceUI();
+      this.value='';
     });
 
-    document.getElementById('sequenceEnabled').addEventListener('change', function(){
-      const seq = getSequenceState(selectedIndex);
-      seq.enabled = this.checked;
-      createEmitter(selectedIndex);
-      updateSequenceUI();
+    document.getElementById('sequenceEnabled').addEventListener('change',function(){
+      const seq=getSequenceState(selectedIndex);
+      seq.enabled=this.checked;
+      commitSequenceSettings(); updateSequenceUI();
     });
-
-    document.getElementById('sequenceFps').addEventListener('input', function(){
-      getSequenceState(selectedIndex).fps = Math.max(1, parseFloat(this.value) || 24);
+    document.getElementById('sequenceFpsMin').addEventListener('input',function(){
+      const seq=getSequenceState(selectedIndex);
+      seq.fpsMin=Math.max(1,parseFloat(this.value)||24);
+      if(seq.fpsMin>seq.fpsMax){ seq.fpsMax=seq.fpsMin; }
+      updateSequenceUI(); commitSequenceSettings();
     });
-
-    document.getElementById('sequenceRandomStart').addEventListener('change', function(){
-      const seq = getSequenceState(selectedIndex);
-      seq.randomStart = this.checked;
-      // Recreate so already pooled particles don't keep an old random offset.
-      createEmitter(selectedIndex);
+    document.getElementById('sequenceFpsMax').addEventListener('input',function(){
+      const seq=getSequenceState(selectedIndex);
+      seq.fpsMax=Math.max(1,parseFloat(this.value)||24);
+      if(seq.fpsMax<seq.fpsMin){ seq.fpsMin=seq.fpsMax; }
+      updateSequenceUI(); commitSequenceSettings();
     });
-
-    document.getElementById('sequenceLoop').addEventListener('change', function(){
-      getSequenceState(selectedIndex).loop = this.checked;
+    document.getElementById('sequenceRandomStart').addEventListener('change',function(){
+      getSequenceState(selectedIndex).randomStart=this.checked;
+      commitSequenceSettings();
     });
-
-    document.getElementById('clearSequenceBtn').addEventListener('click', ()=>{
-      if(selectedIndex < 0) return;
-      const seq = getSequenceState(selectedIndex);
-      destroySequenceState(seq);
-      seq.enabled = false;
-      createEmitter(selectedIndex);
-      updateSequenceUI();
+    document.getElementById('sequenceLoop').addEventListener('change',function(){
+      getSequenceState(selectedIndex).loop=this.checked;
+      commitSequenceSettings();
+    });
+    document.getElementById('clearSequenceBtn').addEventListener('click',()=>{
+      if(selectedIndex<0) return;
+      const seq=getSequenceState(selectedIndex);
+      destroySequenceState(seq); seq.enabled=false;
+      syncStaticArtBehavior(selectedIndex);
+      createEmitter(selectedIndex); updateSequenceUI(); updateConfigText();
     });
 
     // Emitter list UI
+    function nextEmitterName(base='Emitter'){
+      const used=new Set(names);
+      let n=1;
+      while(used.has(`${base} ${n}`)) n++;
+      return `${base} ${n}`;
+    }
+
+    function createFreshEmitter(){
+      const cfg=cloneJson(standardEmitterTemplate || makeDefaultV5Config());
+      configs.push(cfg);
+      textureAssets.push(defaultTextureAssets());
+      names.push(nextEmitterName('Emitter'));
+      sequences.push(makeSequenceState());
+      spawnGizmoVisible.push(true);
+      selectedIndex=configs.length-1;
+      hydrateArtStateFromConfig(selectedIndex);
+      syncStaticArtBehavior(selectedIndex);
+      createEmitter(selectedIndex);
+      refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI(); updateConfigText();
+    }
+
+    function cloneTextureAssetsForEmitter(sourceAssets){
+      return (sourceAssets||[]).map(a=>{
+        if(a.blob){
+          const url=URL.createObjectURL(a.blob);
+          return makeTextureAsset(a.name,PIXI.Texture.from(url),url,a.blob);
+        }
+        // Built-in / externally addressed textures do not own an object URL.
+        return makeTextureAsset(a.name,a.texture,null,null);
+      });
+    }
+
+    function cloneSequenceStateForEmitter(srcSeq){
+      const seq=makeSequenceState();
+      seq.enabled=srcSeq.enabled;
+      seq.fpsMin=srcSeq.fpsMin;
+      seq.fpsMax=srcSeq.fpsMax;
+      seq.randomStart=srcSeq.randomStart;
+      seq.loop=srcSeq.loop;
+      (srcSeq.frameNames||[]).forEach((name,idx)=>{
+        const blob=(srcSeq.blobs||[])[idx] || null;
+        if(blob){
+          const url=URL.createObjectURL(blob);
+          seq.urls.push(url);
+          seq.blobs.push(blob);
+          seq.frameNames.push(name);
+          seq.frames.push(PIXI.Texture.from(url));
+        }else{
+          seq.urls.push(null);
+          seq.blobs.push(null);
+          seq.frameNames.push(name);
+          seq.frames.push((srcSeq.frames||[])[idx] || PIXI.Texture.from(name));
+        }
+      });
+      return seq;
+    }
+
+    function duplicateEmitter(i){
+      if(i<0 || i>=configs.length) return;
+
+      const insertAt=i+1;
+      configs.splice(insertAt,0,cloneJson(configs[i]));
+      textureAssets.splice(insertAt,0,cloneTextureAssetsForEmitter(textureAssets[i]));
+      sequences.splice(insertAt,0,cloneSequenceStateForEmitter(getSequenceState(i)));
+      spawnGizmoVisible.splice(insertAt,0,spawnGizmoVisible[i] !== false);
+      names.splice(insertAt,0,`${names[i] || `Emitter ${i+1}`} Copy`);
+      emitters.splice(insertAt,0,null);
+      selectedIndex=insertAt;
+      createEmitter(selectedIndex);
+      refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI(); updateConfigText();
+    }
+
+    function clearEditorSelection(){
+      selectedIndex=-1;
+      document.getElementById('configArea').value='';
+      setJsonStatus('No emitters','ok');
+      const list=document.getElementById('textureList');
+      if(list) list.innerHTML='';
+      const info=document.getElementById('sequenceInfo');
+      if(info) info.textContent='No frames loaded';
+      if(spawnGizmo) spawnGizmo.clear();
+      const gizmoToggle=document.getElementById('showSpawnGizmo');
+      if(gizmoToggle) gizmoToggle.checked=true;
+    }
+
     function refreshEmitterList(){
-      const ul=document.getElementById('emitterList');
-      ul.innerHTML = '';
+      const ul=document.getElementById('emitterList'); ul.innerHTML='';
       configs.forEach((_,i)=>{
-        const li=document.createElement('li');
-        li.className = i===selectedIndex? 'active':''; 
-        const inp=document.createElement('input');
-        inp.type='text'; inp.value=names[i];
-        inp.oninput = ()=> names[i]=inp.value;
-        inp.onclick = e=> e.stopPropagation();
-        const del=document.createElement('button');
-        del.textContent='Удалить'; del.style.background='#d9534f';
-        del.onclick = e=>{
+        const li=document.createElement('li'); li.className=i===selectedIndex?'active':'';
+        const inp=document.createElement('input'); inp.type='text'; inp.value=names[i];
+        inp.oninput=()=>names[i]=inp.value; inp.onclick=e=>e.stopPropagation();
+
+        const copy=document.createElement('button');
+        copy.textContent='Copy';
+        copy.style.background='#5b7cfa';
+        copy.onclick=e=>{ e.stopPropagation(); duplicateEmitter(i); };
+
+        const del=document.createElement('button'); del.textContent='Delete'; del.style.background='#d9534f';
+        del.onclick=e=>{
           e.stopPropagation();
           if(emitters[i]){ emitters[i].cleanup(); emitters[i].destroy(); }
           destroySequenceState(sequences[i]);
-          configs.splice(i,1); texturesList.splice(i,1); names.splice(i,1); emitters.splice(i,1); sequences.splice(i,1);
-          if(selectedIndex>=configs.length) selectedIndex=configs.length-1;
-          refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI();
+          (textureAssets[i]||[]).forEach(destroyTextureAsset);
+          configs.splice(i,1); textureAssets.splice(i,1); names.splice(i,1); emitters.splice(i,1); sequences.splice(i,1); spawnGizmoVisible.splice(i,1);
+
+          if(configs.length===0){
+            clearEditorSelection();
+            refreshEmitterList();
+            return;
+          }
+
+          if(selectedIndex>i) selectedIndex--;
+          else if(selectedIndex===i) selectedIndex=Math.min(i,configs.length-1);
+          else if(selectedIndex>=configs.length) selectedIndex=configs.length-1;
+
+          refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI(); updateConfigText();
         };
-        li.append(inp, del);
-        li.onclick = ()=>{
-          selectedIndex=i;
-          refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI();
-        };
+        li.append(inp,copy,del);
+        li.onclick=()=>{ selectedIndex=i; refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI(); updateConfigText(); };
         ul.appendChild(li);
       });
     }
-    document.getElementById('createEmitterBtn').onclick = ()=>{
-      const base = configs[0]||{};
-      const copy = JSON.parse(JSON.stringify(base));
-      configs.push(copy);
-      texturesList.push(defaultTextures.slice());
-      names.push(`Emitter ${configs.length}`);
-      sequences.push(makeSequenceState());
-      createEmitter(configs.length-1);
-      selectedIndex=configs.length-1;
-      refreshEmitterList(); populateForm(); updateTextureList(); updateSequenceUI();
-    };
 
-    // Populate form fields
-    function populateForm(){
-      const c = configs[selectedIndex];
-      if(!c.alpha) c.alpha={start:1,end:0};
-      if(!c.scale) c.scale={start:1,end:1,minimumScaleMultiplier:1};
-      if(!c.color) c.color={start:'#fff',end:'#000'};
-      if(!c.speed) c.speed={start:200,end:50,minimumSpeedMultiplier:1};
-      if(!c.acceleration) c.acceleration={x:0,y:0};
-      if(!c.startRotation) c.startRotation={min:-120,max:120};
-      if(!c.rotationSpeed) c.rotationSpeed={min:-10,max:10};
-      if(!c.lifetime) c.lifetime={min:0.3,max:0.8};
-      if(!c.frequency) c.frequency=0.02;
-      if(!c.maxParticles) c.maxParticles=200;
-      if(!c.spawnCircle) c.spawnCircle={x:0,y:0,r:10};
+    // Always creates the same clean default emitter used on first launch.
+    // Cloning an existing emitter is intentionally a separate per-row action.
+    document.getElementById('createEmitterBtn').onclick=createFreshEmitter;
 
-      document.getElementById('configArea').value=JSON.stringify(c,null,2);
-      document.getElementById('alphaStart').value=c.alpha.start;
-      document.getElementById('alphaStartVal').innerText=c.alpha.start;
-      document.getElementById('alphaEnd').value=c.alpha.end;
-      document.getElementById('alphaEndVal').innerText=c.alpha.end;
-      document.getElementById('scaleStart').value=c.scale.start;
-      document.getElementById('scaleStartVal').innerText=c.scale.start;
-      document.getElementById('scaleEnd').value=c.scale.end;
-      document.getElementById('scaleEndVal').innerText=c.scale.end;
-      document.getElementById('minScaleMult').value=c.scale.minimumScaleMultiplier;
-      document.getElementById('minScaleMultVal').innerText=c.scale.minimumScaleMultiplier;
-      document.getElementById('colorStart').value=c.color.start;
-      document.getElementById('colorEnd').value=c.color.end;
-      document.getElementById('speedStart').value=c.speed.start;
-      document.getElementById('speedStartVal').innerText=c.speed.start;
-      document.getElementById('speedEnd').value=c.speed.end;
-      document.getElementById('speedEndVal').innerText=c.speed.end;
-      document.getElementById('minSpeedMult').value=c.speed.minimumSpeedMultiplier;
-      document.getElementById('minSpeedMultVal').innerText=c.speed.minimumSpeedMultiplier;
-      document.getElementById('accX').value=c.acceleration.x;
-      document.getElementById('accY').value=c.acceleration.y;
-      document.getElementById('startRotMin').value=c.startRotation.min;
-      document.getElementById('startRotMax').value=c.startRotation.max;
-      document.getElementById('lifeMin').value=c.lifetime.min;
-      document.getElementById('lifeMinVal').innerText=c.lifetime.min;
-      document.getElementById('lifeMax').value=c.lifetime.max;
-      document.getElementById('lifeMaxVal').innerText=c.lifetime.max;
-      document.getElementById('frequency').value=c.frequency;
-      document.getElementById('frequencyVal').innerText=c.frequency;
-      document.getElementById('maxParticles').value=c.maxParticles;
-      document.getElementById('spawnCircleR').value=c.spawnCircle.r;
-      document.getElementById('spawnCircleRVal').innerText=c.spawnCircle.r;
-    }
-
-    // Form inputs → update config & emitter
-    const fields = [
+    // Form sliders -> V5 behaviors -> JSON text, live.
+    const fields=[
       'alphaStart','alphaEnd','scaleStart','scaleEnd','minScaleMult',
       'colorStart','colorEnd','speedStart','speedEnd','minSpeedMult',
-      'accX','accY','startRotMin','startRotMax',
-      'lifeMin','lifeMax','frequency','maxParticles','spawnCircleR'
+      'accX','accY','startRotMin','startRotMax','lifeMin','lifeMax',
+      'frequency','maxParticles','spawnCircleR','spawnRingOuter','spawnRingInner',
+      'spawnRectW','spawnRectH','spawnRectX','spawnRectY',
+      'spawnBurstStart','spawnBurstSpacing','spawnBurstDistance','spawnBurstParticles'
     ];
     fields.forEach(id=>{
       document.getElementById(id).addEventListener('input',()=>{
-        const c = configs[selectedIndex];
-        const el = document.getElementById(id);
-        switch(id){
-          case 'alphaStart': c.alpha.start=parseFloat(el.value); document.getElementById('alphaStartVal').innerText=el.value; break;
-          case 'alphaEnd':   c.alpha.end  =parseFloat(el.value); document.getElementById('alphaEndVal').innerText=el.value; break;
-          case 'scaleStart': c.scale.start=parseFloat(el.value); document.getElementById('scaleStartVal').innerText=el.value; break;
-          case 'scaleEnd':   c.scale.end  =parseFloat(el.value); document.getElementById('scaleEndVal').innerText=el.value; break;
-          case 'minScaleMult': c.scale.minimumScaleMultiplier=parseFloat(el.value); document.getElementById('minScaleMultVal').innerText=el.value; break;
-          case 'colorStart': c.color.start=el.value; break;
-          case 'colorEnd':   c.color.end  =el.value; break;
-          case 'speedStart': c.speed.start=parseFloat(el.value); document.getElementById('speedStartVal').innerText=el.value; break;
-          case 'speedEnd':   c.speed.end=parseFloat(el.value); document.getElementById('speedEndVal').innerText=el.value; break;
-          case 'minSpeedMult': c.speed.minimumSpeedMultiplier=parseFloat(el.value); document.getElementById('minSpeedMultVal').innerText=el.value; break;
-          case 'accX': c.acceleration.x=parseFloat(el.value); break;
-          case 'accY': c.acceleration.y=parseFloat(el.value); break;
-          case 'startRotMin': c.startRotation.min=parseFloat(el.value); break;
-          case 'startRotMax': c.startRotation.max=parseFloat(el.value); break;
-          case 'lifeMin': c.lifetime.min=parseFloat(el.value); document.getElementById('lifeMinVal').innerText=el.value; break;
-          case 'lifeMax': c.lifetime.max=parseFloat(el.value); document.getElementById('lifeMaxVal').innerText=el.value; break;
-          case 'frequency': c.frequency=parseFloat(el.value); document.getElementById('frequencyVal').innerText=el.value; break;
-          case 'maxParticles': c.maxParticles=parseInt(el.value,10); break;
-          case 'spawnCircleR': c.spawnCircle.r=parseFloat(el.value); document.getElementById('spawnCircleRVal').innerText=el.value; break;
+        if(selectedIndex<0) return;
+        const val=document.getElementById(id+'Val');
+        if(val) val.innerText=document.getElementById(id).value;
+        if(id==='spawnRingInner' || id==='spawnRingOuter'){
+          const outerEl=document.getElementById('spawnRingOuter');
+          const innerEl=document.getElementById('spawnRingInner');
+          const outer=Math.max(0,Number(outerEl.value)||0);
+          if(Number(innerEl.value)>outer){
+            innerEl.value=outer;
+            document.getElementById('spawnRingInnerVal').innerText=outer;
+          }
         }
+        writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+        // Keep whichever art mode is active intact.
+        syncSequenceArtBehavior(selectedIndex);
         createEmitter(selectedIndex);
-        document.getElementById('configArea').value=JSON.stringify(c,null,2);
+        updateConfigText();
+        drawSpawnGizmo(readValuesFromForm());
       });
     });
 
+    document.getElementById('showSpawnGizmo').addEventListener('change',function(){
+      if(selectedIndex<0) return;
+      spawnGizmoVisible[selectedIndex]=this.checked;
+      drawSpawnGizmo(readValuesFromForm());
+    });
+
+    document.getElementById('spawnType').addEventListener('change',()=>{
+      if(selectedIndex<0) return;
+      updateSpawnSettingsVisibility(document.getElementById('spawnType').value);
+      writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+      syncSequenceArtBehavior(selectedIndex);
+      createEmitter(selectedIndex);
+      updateConfigText();
+      drawSpawnGizmo(readValuesFromForm());
+    });
+
+    document.getElementById('additiveBlend').addEventListener('change',()=>{
+      if(selectedIndex<0) return;
+      writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+      syncSequenceArtBehavior(selectedIndex);
+      createEmitter(selectedIndex);
+      updateConfigText();
+    });
+
+    document.getElementById('restartPreviewBtn').addEventListener('click',()=>{
+      if(selectedIndex<0) return;
+      createEmitter(selectedIndex);
+      elapsed=Date.now();
+    });
+
     // Export animation
-    document.getElementById('frameCount').addEventListener('input', function(){
-      document.getElementById('frameCountVal').innerText = this.value;
+    document.getElementById('frameCount').addEventListener('input',function(){
+      document.getElementById('frameCountVal').innerText=this.value;
     });
     document.getElementById('exportAnimBtn').addEventListener('click',()=>{
-      const total = +document.getElementById('frameCount').value;
-      const noBg = document.getElementById('exportNoBackground').checked;
-      app.renderer.backgroundAlpha = noBg?0:1;
+      const total=+document.getElementById('frameCount').value;
+      const noBg=document.getElementById('exportNoBackground').checked;
+      app.renderer.backgroundAlpha=noBg?0:1;
       if(!noBg) app.renderer.backgroundColor=0x000000;
-      const ov = document.getElementById('countdownOverlay');
+      const ov=document.getElementById('countdownOverlay');
       let cd=3; ov.style.display='flex'; ov.textContent=cd;
-      const ti=setInterval(()=>{
-        cd--; if(cd>0) ov.textContent=cd;
-        else{ clearInterval(ti); ov.style.display='none'; capture(total); }
-      },1000);
+      const ti=setInterval(()=>{ cd--; if(cd>0) ov.textContent=cd; else{ clearInterval(ti); ov.style.display='none'; capture(total); } },1000);
     });
     function capture(total){
-      let idx=0, first=null;
+      let idx=0,first=null;
       (function next(){
         if(idx>=total){ if(first) saveFrame(first,idx); return; }
-        const now=Date.now();
-        emitters.forEach((em,i)=>{
-          if(em){
-            em.update((now-elapsed)*0.001);
-            updateEmitterSequence(em,i);
-          }
-        });
-        elapsed=now;
+        const now=Date.now(),dt=(now-elapsed)*0.001;
+        emitters.forEach(em=>em&&em.update(dt)); elapsed=now;
         const rt=PIXI.RenderTexture.create(app.screen.width,app.screen.height);
         app.renderer.render(app.stage,rt);
-        const canvas=app.renderer.extract.canvas(rt);
+        const canvas=app.renderer.extract.canvas(rt); rt.destroy(true);
         const url=canvas.toDataURL('image/png');
-        if(idx===0) first=url;
-        saveFrame(url,idx);
-        idx++; setTimeout(next,33);
+        if(idx===0) first=url; saveFrame(url,idx); idx++; setTimeout(next,33);
       })();
     }
-    function saveFrame(data,i){
-      const a=document.createElement('a');
-      a.href=data; a.download=`frame_${i}.png`; a.click();
-    }
+    function saveFrame(data,i){ const a=document.createElement('a'); a.href=data; a.download=`frame_${i}.png`; a.click(); }
 
-    // Background controls
+    // Background controls (kept: color/image + draggable image)
     document.querySelectorAll('input[name="bgType"]').forEach(r=>{
       r.onchange=()=>{
-        document.getElementById('colorPickerLabel').style.display = r.value==='color'?'flex':'none';
-        document.getElementById('bgFileLabel').style.display   = r.value==='image'?'flex':'none';
+        document.getElementById('colorPickerLabel').style.display=r.value==='color'?'flex':'none';
+        document.getElementById('bgFileLabel').style.display=r.value==='image'?'flex':'none';
       };
     });
     document.getElementById('applyBgBtn').onclick=()=>{
@@ -868,14 +1737,16 @@
       if(type==='color'){
         const col=document.getElementById('bgColor').value;
         app.renderer.backgroundColor=parseInt(col.slice(1),16);
-        app.renderer.backgroundAlpha=0;
+        app.renderer.backgroundAlpha=1;
         if(bgSprite){ bgContainer.removeChild(bgSprite); bgSprite.destroy(); bgSprite=null; }
+        if(bgObjectUrl){ URL.revokeObjectURL(bgObjectUrl); bgObjectUrl=null; }
       } else {
         const fi=document.getElementById('bgFile');
         if(fi.files[0]){
-          const url=URL.createObjectURL(fi.files[0]);
+          if(bgObjectUrl) URL.revokeObjectURL(bgObjectUrl);
+          bgObjectUrl=URL.createObjectURL(fi.files[0]);
           if(bgSprite){ bgContainer.removeChild(bgSprite); bgSprite.destroy(); }
-          bgSprite=new PIXI.Sprite(PIXI.Texture.from(url));
+          bgSprite=new PIXI.Sprite(PIXI.Texture.from(bgObjectUrl));
           bgSprite.anchor.set(0.5);
           bgSprite.position.set(app.screen.width/2,app.screen.height/2);
           bgContainer.addChild(bgSprite);
@@ -883,27 +1754,26 @@
           let offset={x:0,y:0};
           bgSprite.on('pointerdown',e=>{
             const pos=e.data.getLocalPosition(bgContainer);
-            offset.x=bgSprite.x-pos.x; offset.y=bgSprite.y-pos.y;
-            bgSprite.dragging=true;
+            offset.x=bgSprite.x-pos.x; offset.y=bgSprite.y-pos.y; bgSprite.dragging=true;
           });
           bgSprite.on('pointermove',e=>{
             if(!bgSprite.dragging) return;
             const pos=e.data.getLocalPosition(bgContainer);
             bgSprite.position.set(pos.x+offset.x,pos.y+offset.y);
           });
-          bgSprite.on('pointerup',   ()=>bgSprite.dragging=false)
-                  .on('pointerupoutside',()=>bgSprite.dragging=false);
+          bgSprite.on('pointerup',()=>bgSprite.dragging=false).on('pointerupoutside',()=>bgSprite.dragging=false);
           app.renderer.backgroundAlpha=1;
-        } else alert('Выберите файл фона');
+        } else alert('Choose a background image first');
       }
     };
 
     // Resize
     window.addEventListener('resize',()=>{
       const m=document.getElementById('main');
-      app.renderer.resize(m.clientWidth,app.screen.height= m.clientHeight);
+      app.renderer.resize(m.clientWidth,m.clientHeight);
       emitterContainer.position.set(app.screen.width/2,app.screen.height/2);
     });
+
   </script>
 </body>
 </html>
