@@ -470,6 +470,7 @@
     let standardEmitterTemplate = null; // Exact normalized emitter loaded on first launch
     let selectedIndex = 0;
     let elapsed = Date.now();
+    let frameExportActive = false; // pauses realtime ticker during deterministic frame capture
 
     const ART_BEHAVIORS = ['textureSingle','textureRandom','textureOrdered','animatedSingle','animatedRandom','animatedRandomized'];
 
@@ -773,6 +774,13 @@
     // --- Ticker ---
     app.ticker.add(()=>{
       const now = Date.now();
+      // Frame export advances emitters manually with an exact fixed timestep.
+      // Never let the realtime ticker advance them at the same time, otherwise
+      // particles age twice and trails become visibly shorter.
+      if(frameExportActive){
+        elapsed = now;
+        return;
+      }
       const dt = Math.max(0, Math.min(0.25, (now-elapsed)*0.001));
       emitters.forEach((em, index)=>{
         if(!em) return;
@@ -1821,12 +1829,17 @@ export { RandomizedAnimatedTextureBehavior };\n`;
       const digits=Math.max(4,String(Math.max(0,total-1)).length);
       const frameDt=1/30;
 
-      // Recreate the selected emitter so every frame export starts from a
-      // clean preview state instead of whatever moment happened to be visible.
-      if(selectedIndex>=0) createEmitter(selectedIndex);
-      elapsed=Date.now();
+      // IMPORTANT: while PNGs are being encoded asynchronously the normal Pixi
+      // ticker would otherwise continue advancing particle age in real time.
+      // Pause it and make this fixed 30 FPS loop the only simulation clock.
+      frameExportActive=true;
+      try{
+        // Recreate the selected emitter so every frame export starts from a
+        // clean preview state instead of whatever moment happened to be visible.
+        if(selectedIndex>=0) createEmitter(selectedIndex);
+        elapsed=Date.now();
 
-      for(let idx=0; idx<total; idx++){
+        for(let idx=0; idx<total; idx++){
         // Use a fixed 30 FPS simulation step. Wall-clock delays while the
         // browser encodes PNGs must not change particle timing.
         emitters.forEach(em=>{
@@ -1861,8 +1874,11 @@ export { RandomizedAnimatedTextureBehavior };\n`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      setTimeout(()=>URL.revokeObjectURL(url),1000);
-      elapsed=Date.now();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      } finally {
+        frameExportActive=false;
+        elapsed=Date.now();
+      }
     }
 
     // Background controls (kept: color/image + draggable image)
