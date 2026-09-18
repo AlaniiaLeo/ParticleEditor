@@ -1812,19 +1812,28 @@ export { RandomizedAnimatedTextureBehavior };\n`;
       const ti=setInterval(()=>{ cd--; if(cd>0) ov.textContent=cd; else{ clearInterval(ti); ov.style.display='none'; capture(total); } },1000);
     });
     function capture(total){
-      let idx=0,first=null;
+      let idx=0;
+      const digits=Math.max(4,String(Math.max(0,total-1)).length);
       (function next(){
-        if(idx>=total){ if(first) saveFrame(first,idx); return; }
+        // Export exactly the requested number of frames. Do not append the
+        // first frame again at the end: looping software (including Spine)
+        // already wraps from the last frame back to the first.
+        if(idx>=total) return;
         const now=Date.now(),dt=(now-elapsed)*0.001;
         emitters.forEach(em=>em&&em.update(dt)); elapsed=now;
         const rt=PIXI.RenderTexture.create(app.screen.width,app.screen.height);
         app.renderer.render(app.stage,rt);
         const canvas=app.renderer.extract.canvas(rt); rt.destroy(true);
         const url=canvas.toDataURL('image/png');
-        if(idx===0) first=url; saveFrame(url,idx); idx++; setTimeout(next,33);
+        saveFrame(url,idx,digits); idx++; setTimeout(next,33);
       })();
     }
-    function saveFrame(data,i){ const a=document.createElement('a'); a.href=data; a.download=`frame_${i}.png`; a.click(); }
+    function saveFrame(data,i,digits=4){
+      const a=document.createElement('a');
+      a.href=data;
+      a.download=`frame_${String(i).padStart(digits,'0')}.png`;
+      a.click();
+    }
 
     // Background controls (kept: color/image + draggable image)
     document.querySelectorAll('input[name="bgType"]').forEach(r=>{
