@@ -1811,28 +1811,58 @@ export { RandomizedAnimatedTextureBehavior };\n`;
       let cd=3; ov.style.display='flex'; ov.textContent=cd;
       const ti=setInterval(()=>{ cd--; if(cd>0) ov.textContent=cd; else{ clearInterval(ti); ov.style.display='none'; capture(total); } },1000);
     });
-    function capture(total){
-      let idx=0;
+    async function capture(total){
+      if(typeof JSZip==='undefined'){
+        alert('JSZip failed to load. Check your internet connection and restart the tool.');
+        return;
+      }
+
+      const zip=new JSZip();
       const digits=Math.max(4,String(Math.max(0,total-1)).length);
-      (function next(){
-        // Export exactly the requested number of frames. Do not append the
-        // first frame again at the end: looping software (including Spine)
-        // already wraps from the last frame back to the first.
-        if(idx>=total) return;
-        const now=Date.now(),dt=(now-elapsed)*0.001;
-        emitters.forEach(em=>em&&em.update(dt)); elapsed=now;
+      const frameDt=1/30;
+
+      // Recreate the selected emitter so every frame export starts from a
+      // clean preview state instead of whatever moment happened to be visible.
+      if(selectedIndex>=0) createEmitter(selectedIndex);
+      elapsed=Date.now();
+
+      for(let idx=0; idx<total; idx++){
+        // Use a fixed 30 FPS simulation step. Wall-clock delays while the
+        // browser encodes PNGs must not change particle timing.
+        emitters.forEach(em=>{
+          if(!em) return;
+          try{
+            em.updateSpawnPos(emitterContainer.x,emitterContainer.y);
+            em.update(frameDt);
+          }catch(err){ console.error('Frame export emitter update error:',err); }
+        });
+
         const rt=PIXI.RenderTexture.create(app.screen.width,app.screen.height);
         app.renderer.render(app.stage,rt);
-        const canvas=app.renderer.extract.canvas(rt); rt.destroy(true);
-        const url=canvas.toDataURL('image/png');
-        saveFrame(url,idx,digits); idx++; setTimeout(next,33);
-      })();
-    }
-    function saveFrame(data,i,digits=4){
+        const canvas=app.renderer.extract.canvas(rt);
+        rt.destroy(true);
+
+        const blob=await new Promise((resolve,reject)=>{
+          canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not encode PNG frame')),'image/png');
+        });
+        zip.file(`frame_${String(idx).padStart(digits,'0')}.png`,blob);
+      }
+
+      const blob=await zip.generateAsync({
+        type:'blob',
+        compression:'DEFLATE',
+        compressionOptions:{level:6}
+      });
+      const url=URL.createObjectURL(blob);
       const a=document.createElement('a');
-      a.href=data;
-      a.download=`frame_${String(i).padStart(digits,'0')}.png`;
+      const base=(names[selectedIndex]||'particle_animation').replace(/[^a-z0-9_-]+/gi,'_').replace(/^_+|_+$/g,'')||'particle_animation';
+      a.href=url;
+      a.download=`${base}_frames.zip`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      elapsed=Date.now();
     }
 
     // Background controls (kept: color/image + draggable image)
