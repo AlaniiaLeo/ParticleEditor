@@ -82,7 +82,8 @@
     #textureList{margin-top:8px;display:flex;flex-direction:column;gap:6px}.textureItem{display:flex;align-items:center;gap:8px;background:#0e151e;border:1px solid #263243;border-radius:8px;padding:6px}.textureItem img{width:34px;height:34px;object-fit:contain;background:#070b10;border-radius:6px}.textureItem button{margin-left:auto;background:#2b171d;color:#ffb8c0;border:1px solid #59313a;border-radius:6px;padding:5px 7px;cursor:pointer}
     #sequenceInfo{font-size:11px!important;color:var(--muted)!important;margin:8px 0 2px!important;word-break:break-word}
     #clearSequenceBtn{background:#2b171d!important;border:1px solid #59313a;color:#ffb8c0}#clearSequenceBtn:hover{background:#3a1d25!important}
-    .spawn-editor{margin-top:14px;padding-top:14px;border-top:1px solid #273140}.subsection-title{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7f91a8;margin-bottom:10px}.spawn-settings{display:none}.spawn-settings.active{display:block}.spawn-note{font-size:.78rem;line-height:1.45;color:#7f91a8;padding:7px 0 2px}select{background:#10161f;color:#dce7f5;border:1px solid #344154;border-radius:7px;padding:6px 8px;min-width:132px;outline:none}select:focus{border-color:#4da3ff;box-shadow:0 0 0 2px rgba(77,163,255,.12)}
+.direction-editor{margin:14px 0;padding:14px 0;border-top:1px solid #273140;border-bottom:1px solid #273140}.direction-note{font-size:11px;line-height:1.45;color:var(--muted);margin:2px 0 10px;padding:8px 9px;background:#0d141d;border:1px solid #263243;border-radius:8px}.direction-layout{display:grid;grid-template-columns:132px minmax(0,1fr);gap:12px;align-items:center}.direction-layout canvas{width:132px;height:132px;background:#0a1017;border:1px solid #2b394b;border-radius:50%;display:block}.direction-controls label{margin-bottom:10px}.direction-presets{display:grid;grid-template-columns:repeat(3,34px);grid-template-areas:"ul u ur" "l r rgt" "dl d dr";gap:5px;justify-content:center;margin-top:7px}.direction-presets button{width:34px;height:30px;padding:0;border:1px solid #344257;border-radius:7px;background:#202b3a;color:#dce7f5;cursor:pointer;font-size:16px;line-height:1}.direction-presets button:hover{background:#2a3749;border-color:#5b8cff}.direction-presets button:nth-child(1){grid-area:ul}.direction-presets button:nth-child(2){grid-area:u}.direction-presets button:nth-child(3){grid-area:ur}.direction-presets button:nth-child(4){grid-area:l}.direction-presets button:nth-child(5){grid-area:rgt}.direction-presets button:nth-child(6){grid-area:dl}.direction-presets button:nth-child(7){grid-area:d}.direction-presets button:nth-child(8){grid-area:dr}@media(max-width:430px){.direction-layout{grid-template-columns:1fr}.direction-layout canvas{margin:0 auto}}
+    .spawn-editor{margin-top:14px;padding-top:14px;border-top:1px solid #273140}.subsection-title{font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7f91a8;margin-bottom:10px}.spawn-settings{display:none}.spawn-settings.active{display:block}.spawn-note{font-size:.78rem;line-height:1.45;color:#7f91a8;padding:7px 0 2px}.movement-editor{margin:14px 0;padding:14px 0;border-top:1px solid #273140;border-bottom:1px solid #273140}.movement-settings{display:none}.movement-settings.active{display:block}.movement-note{font-size:11px;line-height:1.45;color:var(--muted);margin:2px 0 10px;padding:8px 9px;background:#0d141d;border:1px solid #263243;border-radius:8px}.movement-settings label:last-child{margin-bottom:0}select{background:#10161f;color:#dce7f5;border:1px solid #344154;border-radius:7px;padding:6px 8px;min-width:132px;outline:none}select:focus{border-color:#4da3ff;box-shadow:0 0 0 2px rgba(77,163,255,.12)}
     @media(max-width:900px){#sidebar{width:360px}.btn{padding:7px 9px}}
   </style>
 </head>
@@ -148,37 +149,95 @@
           Color End
           <input type="color" id="colorEnd">
         </label>
-        <label>
-          Speed Start
-          <input type="range" id="speedStart" min="0" max="500" step="1">
-          <span id="speedStartVal"></span>
-        </label>
-        <label>
-          Speed End
-          <input type="range" id="speedEnd" min="0" max="500" step="1">
-          <span id="speedEndVal"></span>
-        </label>
-        <label>
-          Min Speed Mult.
-          <input type="range" id="minSpeedMult" min="0" max="1" step="0.01">
-          <span id="minSpeedMultVal"></span>
-        </label>
-        <label>
-          Acceleration X
-          <input type="number" id="accX" step="0.1">
-        </label>
-        <label>
-          Acceleration Y
-          <input type="number" id="accY" step="0.1">
-        </label>
-        <label>
-          Rot. Min
-          <input type="number" id="startRotMin" step="1">
-        </label>
-        <label>
-          Rot. Max
-          <input type="number" id="startRotMax" step="1">
-        </label>
+        <div class="movement-editor">
+          <div class="subsection-title">Movement</div>
+          <label>
+            Movement Mode
+            <select id="movementMode">
+              <option value="speed">Speed Curve</option>
+              <option value="acceleration">Acceleration</option>
+            </select>
+          </label>
+
+          <div id="movementSpeedSettings" class="movement-settings">
+            <div class="movement-note">Speed Curve changes particle speed over its lifetime. Use it for predictable slow → fast or fast → slow motion.</div>
+            <label>
+              Start Speed
+              <input type="range" id="speedStart" min="0" max="500" step="1">
+              <span id="speedStartVal"></span>
+            </label>
+            <label>
+              End Speed
+              <input type="range" id="speedEnd" min="0" max="500" step="1">
+              <span id="speedEndVal"></span>
+            </label>
+            <label>
+              Random Min Mult.
+              <input type="range" id="minSpeedMult" min="0" max="1" step="0.01">
+              <span id="minSpeedMultVal"></span>
+            </label>
+          </div>
+
+          <div id="movementAccelerationSettings" class="movement-settings">
+            <div class="movement-note">Acceleration uses an initial speed range, then continuously changes velocity using X/Y acceleration.</div>
+            <label>
+              Min Start Speed
+              <input type="number" id="accelMinStart" step="1">
+            </label>
+            <label>
+              Max Start Speed
+              <input type="number" id="accelMaxStart" step="1">
+            </label>
+            <label>
+              Max Speed
+              <input type="number" id="accelMaxSpeed" step="1">
+            </label>
+            <label>
+              Acceleration X
+              <input type="number" id="accX" step="0.1">
+            </label>
+            <label>
+              Acceleration Y
+              <input type="number" id="accY" step="0.1">
+            </label>
+            <label>
+              <input type="checkbox" id="accRotate">
+              Rotate to movement direction
+            </label>
+          </div>
+        </div>
+        <div class="direction-editor">
+          <div class="subsection-title">Launch Direction</div>
+          <div class="direction-note">Choose where particles fly. 0° = right, 90° = down, -90° = up. Spread controls the width of the emission cone.</div>
+          <div class="direction-layout">
+            <canvas id="directionDial" width="132" height="132" aria-label="Particle direction preview"></canvas>
+            <div class="direction-controls">
+              <label>
+                Direction
+                <input type="range" id="particleDirection" min="-180" max="180" step="1">
+                <span id="particleDirectionVal"></span>
+              </label>
+              <label>
+                Spread
+                <input type="range" id="directionSpread" min="0" max="360" step="1">
+                <span id="directionSpreadVal"></span>
+              </label>
+              <div class="direction-presets" aria-label="Direction presets">
+                <button type="button" data-direction="-135" title="Up-left">↖</button>
+                <button type="button" data-direction="-90" title="Up">↑</button>
+                <button type="button" data-direction="-45" title="Up-right">↗</button>
+                <button type="button" data-direction="180" title="Left">←</button>
+                <button type="button" data-direction="0" title="Right">→</button>
+                <button type="button" data-direction="135" title="Down-left">↙</button>
+                <button type="button" data-direction="90" title="Down">↓</button>
+                <button type="button" data-direction="45" title="Down-right">↘</button>
+              </div>
+            </div>
+          </div>
+          <!-- Exact Pixi min/max values are kept here so unrelated UI edits never rewrite manually-authored JSON. -->
+          <input type="hidden" id="startRotMin">
+          <input type="hidden" id="startRotMax">
+        </div>
         <label>
           Lifetime Min
           <input type="range" id="lifeMin" min="0" max="5" step="0.1">
@@ -826,17 +885,28 @@
       const a=listEnds(alphaB && alphaB.config.alpha,1,0);
       const s=listEnds(scaleB && scaleB.config.scale,1,1);
       const col=listEnds(colorB && colorB.config.color,'#ffffff','#ffffff');
-      let sp={start:200,end:50}, minSpeedMult=1, acc={x:0,y:0};
-      if(speedB){
+      let movementMode='speed';
+      let sp={start:200,end:50}, minSpeedMult=1;
+      let accelMinStart=0, accelMaxStart=0, accelMaxSpeed=0, acc={x:0,y:0}, accRotate=false;
+      if(accelB){
+        movementMode='acceleration';
+        accelMinStart=Number(accelB.config.minStart ?? 0);
+        accelMaxStart=Number(accelB.config.maxStart ?? 0);
+        accelMaxSpeed=Number(accelB.config.maxSpeed ?? 0);
+        acc=accelB.config.accel || {x:0,y:0};
+        accRotate=accelB.config.rotate === true;
+        // Keep sensible fallback values if the user switches back to Speed Curve.
+        sp.start=accelMaxStart;
+        sp.end=accelMaxStart;
+        minSpeedMult=accelMaxStart ? accelMinStart/accelMaxStart : 1;
+      } else if(speedB){
+        movementMode='speed';
         sp=listEnds(speedB.config.speed,200,50);
-        minSpeedMult = speedB.config.minMult ?? 1;
-      } else if(accelB){
-        sp.start = Number(accelB.config.maxStart) || 0;
-        sp.end = sp.start;
-        const maxStart = Number(accelB.config.maxStart) || 0;
-        const minStart = Number(accelB.config.minStart) || 0;
-        minSpeedMult = maxStart ? minStart/maxStart : 1;
-        acc = accelB.config.accel || {x:0,y:0};
+        minSpeedMult=speedB.config.minMult ?? 1;
+        // Sensible defaults if the user switches this emitter to Acceleration.
+        accelMinStart=Number(sp.start) * Number(minSpeedMult);
+        accelMaxStart=Number(sp.start);
+        accelMaxSpeed=0;
       }
 
       let rotMin=-120, rotMax=120;
@@ -882,8 +952,10 @@
         alphaStart:Number(a.start), alphaEnd:Number(a.end),
         scaleStart:Number(s.start), scaleEnd:Number(s.end), minScaleMult:Number(scaleB?.config?.minMult ?? 1),
         colorStart:String(col.start || '#ffffff'), colorEnd:String(col.end || '#ffffff'),
+        movementMode,
         speedStart:Number(sp.start), speedEnd:Number(sp.end), minSpeedMult:Number(minSpeedMult),
-        accX:Number(acc.x)||0, accY:Number(acc.y)||0,
+        accelMinStart:Number(accelMinStart), accelMaxStart:Number(accelMaxStart), accelMaxSpeed:Number(accelMaxSpeed),
+        accX:Number(acc.x)||0, accY:Number(acc.y)||0, accRotate:!!accRotate,
         startRotMin:Number(rotMin), startRotMax:Number(rotMax),
         lifeMin:Number(c.lifetime?.min ?? 0.3), lifeMax:Number(c.lifetime?.max ?? 0.8),
         frequency:Number(c.frequency ?? 0.02), maxParticles:Number(c.maxParticles ?? 200),
@@ -921,24 +993,37 @@
       removeBehaviors(c,['rotation','rotationStatic','noRotation']);
       upsertBehavior(c,'rotation',{minStart:v.startRotMin,maxStart:v.startRotMax,minSpeed:minRotSpeed,maxSpeed:maxRotSpeed,accel:rotAccel});
 
-      // v5 separates interpolated speed and accelerated movement into different
-      // behaviors. This mirrors upgradeConfig(): non-zero acceleration uses the
-      // native moveAcceleration behavior; otherwise native moveSpeed is used.
-      removeBehaviors(c,['moveSpeed','moveAcceleration']);
-      if(Math.abs(v.accX) > 1e-9 || Math.abs(v.accY) > 1e-9){
-        const maxStart=Math.max(0,v.speedStart);
-        upsertBehavior(c,'moveAcceleration',{
-          accel:{x:v.accX,y:v.accY},
-          minStart:maxStart * Math.max(0,Math.min(1,v.minSpeedMult)),
-          maxStart:maxStart,
-          maxSpeed:0,
-          rotate:false
-        });
+      // Movement modes are explicit. Never infer the behavior type from accel X/Y:
+      // zero acceleration is still a valid moveAcceleration setup. Preserve any
+      // intermediate moveSpeed curve points so unrelated UI edits cannot flatten
+      // a more advanced curve that was authored directly in JSON.
+      const oldSpeed=findBehavior(c,'moveSpeed');
+      const oldAccel=findBehavior(c,'moveAcceleration');
+      if(v.movementMode === 'acceleration'){
+        const cfg=cloneJson(oldAccel?.config || {});
+        cfg.accel={x:Number(v.accX)||0,y:Number(v.accY)||0};
+        cfg.minStart=Number(v.accelMinStart)||0;
+        cfg.maxStart=Number(v.accelMaxStart)||0;
+        cfg.maxSpeed=Number(v.accelMaxSpeed)||0;
+        cfg.rotate=!!v.accRotate;
+        removeBehaviors(c,['moveSpeed','moveAcceleration']);
+        upsertBehavior(c,'moveAcceleration',cfg);
       } else {
-        upsertBehavior(c,'moveSpeed',{
-          speed:{list:[{value:v.speedStart,time:0},{value:v.speedEnd,time:1}],isStepped:false},
-          minMult:v.minSpeedMult
-        });
+        const cfg=cloneJson(oldSpeed?.config || {});
+        const speedObj=cloneJson(cfg.speed || {});
+        let list=Array.isArray(speedObj.list) ? speedObj.list.map(k=>({...k})) : [];
+        if(list.length >= 2){
+          list[0].value=Number(v.speedStart)||0;
+          list[list.length-1].value=Number(v.speedEnd)||0;
+        } else {
+          list=[{value:Number(v.speedStart)||0,time:0},{value:Number(v.speedEnd)||0,time:1}];
+        }
+        speedObj.list=list;
+        if(speedObj.isStepped === undefined) speedObj.isStepped=false;
+        cfg.speed=speedObj;
+        cfg.minMult=Number(v.minSpeedMult);
+        removeBehaviors(c,['moveSpeed','moveAcceleration']);
+        upsertBehavior(c,'moveSpeed',cfg);
       }
 
       // Native v5 spawn behaviors. Only one spawn behavior is active at a time.
@@ -989,8 +1074,10 @@
         scaleStart:n('scaleStart'), scaleEnd:n('scaleEnd'), minScaleMult:n('minScaleMult'),
         colorStart:document.getElementById('colorStart').value,
         colorEnd:document.getElementById('colorEnd').value,
+        movementMode:document.getElementById('movementMode').value,
         speedStart:n('speedStart'), speedEnd:n('speedEnd'), minSpeedMult:n('minSpeedMult'),
-        accX:n('accX')||0, accY:n('accY')||0,
+        accelMinStart:n('accelMinStart'), accelMaxStart:n('accelMaxStart'), accelMaxSpeed:n('accelMaxSpeed'),
+        accX:n('accX')||0, accY:n('accY')||0, accRotate:document.getElementById('accRotate').checked,
         startRotMin:n('startRotMin'), startRotMax:n('startRotMax'),
         lifeMin:n('lifeMin'), lifeMax:n('lifeMax'), frequency:n('frequency'),
         maxParticles:parseInt(document.getElementById('maxParticles').value,10)||1,
@@ -1015,9 +1102,40 @@
 
     function setRangeValue(id, value){
       const el=document.getElementById(id);
+      if(!el) return;
+
+      // Keep the original UI range as the normal/default range, but never let
+      // it clamp a valid value that came from manually edited JSON. HTML range
+      // inputs silently clamp `el.value` to min/max, which previously meant an
+      // unrelated slider edit could overwrite e.g. moveAcceleration.maxStart
+      // 900 with the UI maximum 500.
+      if(el.type === 'range'){
+        if(el.dataset.baseMin === undefined) el.dataset.baseMin = el.min;
+        if(el.dataset.baseMax === undefined) el.dataset.baseMax = el.max;
+
+        const baseMin = Number(el.dataset.baseMin);
+        const baseMax = Number(el.dataset.baseMax);
+        const numeric = Number(value);
+
+        if(Number.isFinite(baseMin)) el.min = String(baseMin);
+        if(Number.isFinite(baseMax)) el.max = String(baseMax);
+
+        if(Number.isFinite(numeric)){
+          if(Number.isFinite(baseMin) && numeric < baseMin) el.min = String(numeric);
+          if(Number.isFinite(baseMax) && numeric > baseMax) el.max = String(numeric);
+        }
+      }
+
       el.value=value;
       const val=document.getElementById(id+'Val');
       if(val) val.innerText=value;
+    }
+
+    function updateMovementSettingsVisibility(mode){
+      const speed=document.getElementById('movementSpeedSettings');
+      const accel=document.getElementById('movementAccelerationSettings');
+      if(speed) speed.classList.toggle('active', mode==='speed');
+      if(accel) accel.classList.toggle('active', mode==='acceleration');
     }
 
     function updateSpawnSettingsVisibility(type){
@@ -1072,6 +1190,74 @@
       try { g.endFill(); } catch {}
     }
 
+    function normalizeDirectionAngle(angle){
+      let a=Number(angle)||0;
+      a=((a+180)%360+360)%360-180;
+      // Prefer +180 for a left-facing preset/readout instead of -180.
+      if(a===-180) a=180;
+      return a;
+    }
+
+    function directionFromRotation(minRot,maxRot){
+      const min=Number(minRot)||0;
+      const max=Number(maxRot)||0;
+      return {
+        direction:normalizeDirectionAngle((min+max)/2),
+        spread:Math.min(360,Math.max(0,Math.abs(max-min)))
+      };
+    }
+
+    function drawDirectionDial(){
+      const canvas=document.getElementById('directionDial');
+      if(!canvas) return;
+      const ctx=canvas.getContext('2d');
+      const w=canvas.width,h=canvas.height,cx=w/2,cy=h/2,r=49;
+      const direction=Number(document.getElementById('particleDirection').value)||0;
+      const spread=Math.max(0,Math.min(360,Number(document.getElementById('directionSpread').value)||0));
+      const rad=a=>a*Math.PI/180;
+      ctx.clearRect(0,0,w,h);
+
+      ctx.strokeStyle='rgba(130,151,180,.25)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx-r,cy);ctx.lineTo(cx+r,cy);ctx.moveTo(cx,cy-r);ctx.lineTo(cx,cy+r);ctx.stroke();
+
+      // Emission cone. Canvas angles use the same screen-space convention as Pixi: +Y points down.
+      if(spread>=359.5){
+        ctx.fillStyle='rgba(91,140,255,.16)';ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+      }else{
+        const a0=rad(direction-spread/2),a1=rad(direction+spread/2);
+        ctx.fillStyle='rgba(91,140,255,.20)';ctx.strokeStyle='rgba(91,140,255,.50)';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a0,a1,false);ctx.closePath();ctx.fill();ctx.stroke();
+      }
+
+      // Main direction arrow.
+      const a=rad(direction), ex=cx+Math.cos(a)*r, ey=cy+Math.sin(a)*r;
+      ctx.strokeStyle='#9ec1ff';ctx.fillStyle='#9ec1ff';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ex,ey);ctx.stroke();
+      const ah=9;
+      ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex+Math.cos(a+2.55)*ah,ey+Math.sin(a+2.55)*ah);ctx.lineTo(ex+Math.cos(a-2.55)*ah,ey+Math.sin(a-2.55)*ah);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#dce7f5';ctx.beginPath();ctx.arc(cx,cy,3,0,Math.PI*2);ctx.fill();
+    }
+
+    function setDirectionControlsFromRotation(minRot,maxRot){
+      const d=directionFromRotation(minRot,maxRot);
+      document.getElementById('particleDirection').value=d.direction;
+      document.getElementById('directionSpread').value=d.spread;
+      document.getElementById('particleDirectionVal').innerText=`${Math.round(d.direction)}°`;
+      document.getElementById('directionSpreadVal').innerText=`${Math.round(d.spread)}°`;
+      drawDirectionDial();
+    }
+
+    function writeRotationFromDirectionControls(){
+      const direction=Number(document.getElementById('particleDirection').value)||0;
+      const spread=Math.max(0,Math.min(360,Number(document.getElementById('directionSpread').value)||0));
+      document.getElementById('startRotMin').value=direction-spread/2;
+      document.getElementById('startRotMax').value=direction+spread/2;
+      document.getElementById('particleDirectionVal').innerText=`${Math.round(direction)}°`;
+      document.getElementById('directionSpreadVal').innerText=`${Math.round(spread)}°`;
+      drawDirectionDial();
+    }
+
     function populateForm(){
       if(selectedIndex < 0 || !configs[selectedIndex]) return;
       const v=readEditorValues(configs[selectedIndex]);
@@ -1080,9 +1266,16 @@
       setRangeValue('scaleStart',v.scaleStart); setRangeValue('scaleEnd',v.scaleEnd); setRangeValue('minScaleMult',v.minScaleMult);
       document.getElementById('colorStart').value=v.colorStart;
       document.getElementById('colorEnd').value=v.colorEnd;
+      document.getElementById('movementMode').value=v.movementMode;
+      updateMovementSettingsVisibility(v.movementMode);
       setRangeValue('speedStart',v.speedStart); setRangeValue('speedEnd',v.speedEnd); setRangeValue('minSpeedMult',v.minSpeedMult);
+      document.getElementById('accelMinStart').value=v.accelMinStart;
+      document.getElementById('accelMaxStart').value=v.accelMaxStart;
+      document.getElementById('accelMaxSpeed').value=v.accelMaxSpeed;
       document.getElementById('accX').value=v.accX; document.getElementById('accY').value=v.accY;
+      document.getElementById('accRotate').checked=!!v.accRotate;
       document.getElementById('startRotMin').value=v.startRotMin; document.getElementById('startRotMax').value=v.startRotMax;
+      setDirectionControlsFromRotation(v.startRotMin,v.startRotMax);
       setRangeValue('lifeMin',v.lifeMin); setRangeValue('lifeMax',v.lifeMax);
       setRangeValue('frequency',v.frequency);
       document.getElementById('maxParticles').value=v.maxParticles;
@@ -1748,7 +1941,8 @@ export { RandomizedAnimatedTextureBehavior };\n`;
     const fields=[
       'alphaStart','alphaEnd','scaleStart','scaleEnd','minScaleMult',
       'colorStart','colorEnd','speedStart','speedEnd','minSpeedMult',
-      'accX','accY','startRotMin','startRotMax','lifeMin','lifeMax',
+      'accelMinStart','accelMaxStart','accelMaxSpeed','accX','accY',
+      'lifeMin','lifeMax',
       'frequency','maxParticles','spawnCircleR','spawnRingOuter','spawnRingInner',
       'spawnRectW','spawnRectH','spawnRectX','spawnRectY',
       'spawnBurstStart','spawnBurstSpacing','spawnBurstDistance','spawnBurstParticles'
@@ -1774,6 +1968,46 @@ export { RandomizedAnimatedTextureBehavior };\n`;
         updateConfigText();
         drawSpawnGizmo(readValuesFromForm());
       });
+    });
+
+    ['particleDirection','directionSpread'].forEach(id=>{
+      document.getElementById(id).addEventListener('input',()=>{
+        if(selectedIndex<0) return;
+        writeRotationFromDirectionControls();
+        writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+        syncSequenceArtBehavior(selectedIndex);
+        createEmitter(selectedIndex);
+        updateConfigText();
+      });
+    });
+
+    document.querySelectorAll('.direction-presets button[data-direction]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(selectedIndex<0) return;
+        document.getElementById('particleDirection').value=Number(btn.dataset.direction)||0;
+        writeRotationFromDirectionControls();
+        writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+        syncSequenceArtBehavior(selectedIndex);
+        createEmitter(selectedIndex);
+        updateConfigText();
+      });
+    });
+
+    document.getElementById('movementMode').addEventListener('change',function(){
+      if(selectedIndex<0) return;
+      updateMovementSettingsVisibility(this.value);
+      writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+      syncSequenceArtBehavior(selectedIndex);
+      createEmitter(selectedIndex);
+      updateConfigText();
+    });
+
+    document.getElementById('accRotate').addEventListener('change',function(){
+      if(selectedIndex<0) return;
+      writeKnownBehaviorsFromValues(configs[selectedIndex],readValuesFromForm());
+      syncSequenceArtBehavior(selectedIndex);
+      createEmitter(selectedIndex);
+      updateConfigText();
     });
 
     document.getElementById('showSpawnGizmo').addEventListener('change',function(){
